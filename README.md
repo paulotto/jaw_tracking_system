@@ -6,15 +6,17 @@
 A modular and extensible Python package for analyzing jaw motion using motion capture data. 
 Designed for research and clinical applications, it provides a flexible pipeline for calibration, 
 coordinate transformations, registration, smoothing, visualization, and export of jaw kinematics.
+The models for the hardware components are provided as STL files and inside a FreeCAD project file.
 
 ---
 
 ## Table of Contents
 - [Features](#features)
+- [Hardware](#hardware)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
-- [Usage](#usage)
+- [Setup and Usage](#setup-and-usage)
 - [Extending the Framework](#extending-the-framework)
 - [Directory Structure](#directory-structure)
 - [Testing](#testing)
@@ -24,22 +26,58 @@ coordinate transformations, registration, smoothing, visualization, and export o
 ---
 
 ## Features
+- Customizable, 3D-printable hardware components
 - Offline or real-time jaw motion analysis
 - Abstract base classes for motion capture data (supports Qualisys, extensible to others)
 - Calibration routines for anatomical landmark registration
 - Modular pipeline: calibration, relative motion, coordinate transformation, smoothing, visualization, export
-- Support for multiple file formats (CSV, HDF5)
-- Configurable via JSON files
+- Support for data export in HDF5 format
+- Easy configurable via JSON files
 - Visualization utilities for 2D/3D trajectories
 - Comprehensive logging and error handling
 - Test suite for core functionality
 
+## Hardware
+The hardware components are designed to be low-cost and customizable. The models for the hardware components are 
+provided as STL files and inside a FreeCAD project file. You can find the files in the [models](models) directory.
+
+The mouthpiece, teeth attachment, headpiece, and digitizing pointer are designed to be 3D-printed. 
+Since it isn't easy to 3D-print a sharp point for the digitizing pointer, a dart point is used, which can be attached 
+to a 2BA thread connected to the digitizing pointer's tip.
+For the reflective markers, you can use reflective fibers or reflective tape (see [Components](#components)).
+
+### Components
+| <img src=".resources/images/mouthpiece_render_blender.png" height="80"/> | <img src=".resources/images/mouth_attachement_render_blender.png" height="80"/> | <img src=".resources/images/headpiece_render_blender.png" height="80"/> | <img src=".resources/images/calibration_tool_render_blender.png" height="60"/> |
+|:------------------------------------------------------------------------:|:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------:|:------------------------------------------------------------------------------:|
+|                                Mouthpiece                                |                                Teeth attachement                                |                                Headpiece                                |                               Digitizing pointer                               |
+
+| <img src=".resources/images/2ba_thread_background.png" height="200"/> | <img src=".resources/images/dart_point.png" height="200"/> | <img src=".resources/images/reflective_fiber.png" height="130"/> | <img src=".resources/images/tmp_dental_glue.png" height="130"/> |
+|:---------------------------------------------------------------------:|:----------------------------------------------------------:|:----------------------------------------------------------------:|:---------------------------------------------------------------:|
+|                              2BA thread                               |                         Dart point                         |                         Reflective fiber                         |                      Temporary dental glue                      |
+
 ## Installation
 
-Clone the repository and install dependencies:
+Install the package using pip:
 
 ```bash
-pip install -r requirements.txt
+python -m pip install jaw-tracking-system
+```
+From GitHub:
+```bash
+python -m pip install git+https://github.com/paulotto/jaw_tracking_system.git
+```
+Or just clone the repository, copy the `jts` directory to your project, and install the dependencies:
+
+```bash
+git clone https://github.com/paulotto/jaw_tracking_system.git 
+cd jaw_tracking_system
+cp -r jts your_project_directory/
+python -m pip install -r requirements.txt
+```
+
+### Optional Dependencies
+```bash
+python -m pip install plotly==6.0.1 qtm_rt
 ```
 
 ## Quick Start
@@ -48,7 +86,7 @@ pip install -r requirements.txt
 2. Run the analysis pipeline:
 
 ```bash
-python -m mocap.core path/to/config.json
+python -m jts.core path/to/config.json
 ```
 
 3. Results (trajectories, plots, exports) will be saved to the output directory specified in your config.
@@ -63,12 +101,13 @@ All analysis parameters are specified in a JSON config file. Key sections includ
 
 See [config.json](config/config.json) for a template.
 
-## Usage
+## Setup and Usage
+TODO: Describe experimental setup, hardware assembly, and how to run the system.
 
 ### As a Script
 
 ```bash
-python -m mocap.core path/to/config.json
+python -m jts.core path/to/config.json
 ```
 
 Optional flags:
@@ -78,7 +117,7 @@ Optional flags:
 ### As a Library
 
 ```python
-from jaw_tracking_system.core import JawMotionAnalysis, ConfigManager
+from jts.core import JawMotionAnalysis, ConfigManager
 
 config = ConfigManager.load_config('path/to/config.json')
 analysis = JawMotionAnalysis(config)
@@ -95,28 +134,30 @@ results = analysis.run_analysis()
 
 ```
 jaw_tracking_system/
-├── __init__.py
-├── calibration_controllers.py
-├── core.py
-├── helper.py
-├── LICENSE
-├── plotly_visualization.py
-├── precision_analysis.py
-├── qualisys_streaming.py
-├── qualisys.py
-├── README.md
-├── requirements.txt
-├── setup.py
-├── streaming.py
+├── jts/
+│   ├── __init__.py
+│   ├── calibration_controllers.py
+│   ├── core.py
+│   ├── helper.py
+│   ├── plotly_visualization.py
+│   ├── precision_analysis.py
+│   ├── qualisys_streaming.py
+│   ├── qualisys.py
+│   ├── streaming.py
 ├── config/
 │   ├── README.md
 │   └── config.json
-└── tests/
-    ├── __init__.py
-    ├── test_core.py
-    ├── test_helper.py
-    ├── test_precision_analysis.py
-    └── test_qualisys.py
+├── models/
+├── tests/
+│   ├── __init__.py
+│   ├── test_core.py
+│   ├── test_helper.py
+│   ├── test_precision_analysis.py
+│   └── test_qualisys.py
+├── LICENSE
+├── README.md
+├── requirements.txt
+├── setup.py
 ```
 
 ## Testing
