@@ -1,5 +1,5 @@
 """
-Unit tests for mocap.core module.
+Unit tests for jts.core module.
 
 This test suite covers:
 - Data class validation for FrameInterval and CalibrationPoint
@@ -23,7 +23,8 @@ import numpy as np
 import pytest
 import tempfile
 import json
-from mocap import core
+
+from jts import core
 from pathlib import Path
 
 
@@ -199,7 +200,7 @@ def test_config_unit_and_scale_factor(monkeypatch):
         called_args['unit'] = kwargs.get('unit')
         return None
 
-    monkeypatch.setattr("mocap.helper.store_transformations", fake_store_transformations)
+    monkeypatch.setattr("jts.helper.store_transformations", fake_store_transformations)
     analysis._save_hdf5_results(Path("."))
 
     assert called_args['scale_factor'] == 0.001

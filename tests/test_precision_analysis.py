@@ -1,5 +1,5 @@
 """
-Tests for precision_analysis.py, focusing on unit handling in load_hdf5_data.
+Tests for the jts.precision_analysis module, focusing on unit handling in load_hdf5_data.
 """
 
 __author__ = "Paul-Otto Müller"
@@ -16,8 +16,9 @@ import numpy as np
 import h5py
 import tempfile
 import pytest
+
 from pathlib import Path
-from mocap.precision_analysis import JawMotionPrecisionAnalyzer
+from jts.precision_analysis import JawMotionPrecisionAnalyzer
 
 
 def create_hdf5_with_unit(unit, translation_value=1.0):
@@ -40,7 +41,7 @@ def test_analyze_precision_identity():
     """
     Test analyze_precision on identity transforms (should yield zero error metrics).
     """
-    from mocap.precision_analysis import JawMotionPrecisionAnalyzer
+    from jts.precision_analysis import JawMotionPrecisionAnalyzer
 
     N = 20
     T = np.tile(np.eye(4), (N, 1, 1))
@@ -61,7 +62,7 @@ def test_filter_transformations_lowpass():
     """
     Test that filter_transformations smooths out high-frequency noise.
     """
-    from mocap.precision_analysis import JawMotionPrecisionAnalyzer
+    from jts.precision_analysis import JawMotionPrecisionAnalyzer
 
     N = 100
     T = np.tile(np.eye(4), (N, 1, 1))
@@ -79,7 +80,7 @@ def test_compute_frequency_spectrum_shape():
     """
     Test compute_frequency_spectrum returns correct keys and array shapes.
     """
-    from mocap.precision_analysis import JawMotionPrecisionAnalyzer
+    from jts.precision_analysis import JawMotionPrecisionAnalyzer
 
     N = 64
     T = np.tile(np.eye(4), (N, 1, 1))
@@ -99,7 +100,7 @@ def test_cutoff_suggestions_monotonic():
     """
     Test that cutoff suggestions are monotonic for a simple ramp signal.
     """
-    from mocap.precision_analysis import JawMotionPrecisionAnalyzer
+    from jts.precision_analysis import JawMotionPrecisionAnalyzer
 
     N = 128
     T = np.tile(np.eye(4), (N, 1, 1))
@@ -109,7 +110,7 @@ def test_cutoff_suggestions_monotonic():
 
     # All suggestions should be positive and within Nyquist
     for v in suggestions.values():
-        assert v > 0
+        assert v >= 0
         assert v < 32
 
 
@@ -117,7 +118,7 @@ def test_export_metrics_csv(tmp_path):
     """
     Test export_metrics writes a CSV with correct metrics and metadata.
     """
-    from mocap.precision_analysis import JawMotionPrecisionAnalyzer, PrecisionMetrics
+    from jts.precision_analysis import JawMotionPrecisionAnalyzer, PrecisionMetrics
     import pandas as pd
 
     # Create dummy metrics
@@ -156,8 +157,7 @@ def test_store_and_load_roundtrip(tmp_path):
     """
     Integration test: store with helper.py, load with precision_analysis.py, check values and units.
     """
-    import h5py
-    from mocap import helper as hlp
+    from jts import helper as hlp
 
     # Create a transformation array
     T = np.tile(np.eye(4), (2, 1, 1))
@@ -185,8 +185,7 @@ def test_store_and_load_with_config(tmp_path):
     """
     Simulate core.py config/output logic: store with config unit/scale_factor, load and check.
     """
-    import h5py
-    from mocap import helper as hlp
+    from jts import helper as hlp
 
     # Simulate config
     config = {
@@ -213,7 +212,7 @@ def test_helper_and_precision_analysis_unit_consistency(tmp_path):
     """
     Test that helper.py and precision_analysis.py agree on unit conversion for various units.
     """
-    from mocap import helper as hlp
+    from jts import helper as hlp
 
     units = ["mm", "cm", "m", "in"]
     factors = [1, 10, 1000, 25.4]

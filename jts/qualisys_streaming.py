@@ -17,15 +17,13 @@ __status__ = "Development"
 __date__ = '03.06.2025'
 __url__ = "https://github.com/paulotto/jaw_tracking_system"
 
-import time
 import asyncio
 import threading
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, Optional, Any
 
 import numpy as np
-from scipy.spatial.transform import Rotation as R
 
 try:
     import qtm_rt
@@ -34,7 +32,6 @@ except ImportError:
 
 from . import helper as hlp
 from . import streaming as stm
-from . import qualisys as qtm
 
 # Set up module logger
 logger = hlp.setup_logger(__name__)

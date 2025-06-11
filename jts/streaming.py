@@ -49,7 +49,7 @@ from abc import ABC, abstractmethod
 from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Dict, List, Tuple, Optional, Any, Callable, Union, Deque
+from typing import Dict, List, Tuple, Optional, Any, Callable, Deque
 from datetime import datetime
 
 import numpy as np

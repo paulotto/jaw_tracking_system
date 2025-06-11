@@ -1,5 +1,5 @@
 """
-Unit tests for mocap.qualisys module.
+Unit tests for jts.qualisys module.
 
 The test suite covers:
 - Initialization and validation of the RigidBody class.
@@ -19,9 +19,10 @@ __status__ = "Development"
 __date__ = '30.05.2025'
 __url__ = "https://github.com/paulotto/jaw_tracking_system"
 
-import numpy as np
 import pytest
-from mocap import qualisys as qtm
+import numpy as np
+
+from jts import qualisys as qtm
 
 
 def test_rigidbody_init_and_validation():

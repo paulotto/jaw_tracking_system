@@ -1,8 +1,10 @@
 from setuptools import setup, find_packages
 
+version = "1.0.0"
+
 setup(
-    name="jaw_tracking_system",
-    version="1.0.0",
+    name="jaw-tracking-system",
+    version=version,
     description="Modular and flexible jaw motion analysis framework (motion capture, calibration, registration, "
                 "and analysis)",
     long_description="""
@@ -35,10 +37,10 @@ setup(
         "Topic :: Scientific/Engineering :: Information Analysis",
         "Topic :: Scientific/Engineering :: Visualization",
     ],
-    keywords="motion-capture jaw-analysis biomechanics qualisys calibration registration",
+    keywords="motion-capture jaw-analysis jaw-tracking biomechanics calibration registration",
     entry_points={
         "console_scripts": [
-            "jts-analysis = jaw_tracking_system.core:main",
+            "jts-analysis = jts.core:main",
         ],
     },
     package_data={

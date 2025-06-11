@@ -1,5 +1,5 @@
 """
-Test suite for the mocap.helper module.
+Test suite for the jts.helper module.
 
 This suite includes tests for:
 - Transformation matrix construction
@@ -22,8 +22,8 @@ __date__ = '30.05.2025'
 __url__ = "https://github.com/paulotto/jaw_tracking_system"
 
 import numpy as np
-import pytest
-from mocap import helper as hlp
+
+from jts import helper as hlp
 
 
 def test_build_transform():
