@@ -1,7 +1,7 @@
 {
   "data_source": {
     "type": "qualisys",
-    "mode": "offline",  // or "streaming"
+    "mode": "offline",
     "filename": "path/data.mat",
 
     "streaming": {
@@ -19,16 +19,16 @@
     "description": "Jaw motion analysis experiment",
 
     "calibration": {
-      "mode": "offline",  // or "online"
+      "mode": "offline",
 
       "online_config": {
-        "method": "button_triggered",   // or "automatic", "guided"
-        "stability_threshold": 0.5,     // mm
-        "stability_duration": 0.5,      // seconds
-        "capture_window": 1.0,          // seconds
+        "method": "button_triggered",
+        "stability_threshold": 0.5,
+        "stability_duration": 0.5,
+        "capture_window": 1.0,
         "auto_capture": false,
         "require_confirmation": true,
-        "calibration_tool_name": "CT",  // Rigid body name for calibration tool
+        "calibration_tool_name": "CT",
 
         "feedback": {
           "visual": true,
@@ -80,16 +80,15 @@
     },
 
     "experiment": {
-      "frame_interval": [15300, 27000],  // Still supported for backward compatibility
-      "use_sub_experiments": false,  // Enable sub-experiment processing
-      "combine_sub_experiments": ["open_close", "chewing"],  // or "all"
+      "frame_interval": [15300, 27000],
+      "use_sub_experiments": false,
+      "combine_sub_experiments": ["open_close", "chewing"],
 
       "sub_experiments": {
         "open_close": [15300, 18400],
         "left_right": [20050, 21850],
         "protrusion_retrusion": [21851, 23950],
         "chewing": [24400, 26051],
-        // Example of multiple intervals for one sub-experiment:
         "complex_motion": [
           [27000, 27500],
           [28000, 28500],
@@ -98,9 +97,9 @@
       },
 
       "interpolation": {
-        "method": "cubic",  // "linear", "cubic", "slerp", "hermite", "none"
-        "transition_frames": 10,  // Frames for smooth transition
-        "connect_intervals": true  // Whether to interpolate between intervals
+        "method": "cubic",
+        "transition_frames": 10,
+        "connect_intervals": true
       }
     },
 
@@ -131,12 +130,12 @@
   "visualization": {
     "raw_data": true,
     "raw_data_3d": false,
-    "calibration_transforms": true, // Static marker-landmark transformations
-    "relative_marker_motion": true, // The relative motion of the moouth to head markers
-    "landmark_motion": true, // The landmark motion relative to the head markers
+    "calibration_transforms": true,
+    "relative_marker_motion": true,
+    "landmark_motion": true,
     "final_trajectory": true,
     "plot_2d_components": true,
-    "plot_export_only": true, // Plots only the final trajectory in a separate figure
+    "plot_export_only": true,
     "plot_rot_3d": false,
     "show_plots": true,
     "use_tex_font": false,
