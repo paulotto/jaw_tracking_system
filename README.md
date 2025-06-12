@@ -27,7 +27,7 @@ The models for the hardware components are provided as STL files and inside a Fr
 
 ## Features
 - Customizable, 3D-printable hardware components
-- Offline or real-time jaw motion analysis
+- Offline or real-time jaw motion analysis (online processing in development)
 - Abstract base classes for motion capture data (supports Qualisys, extensible to others)
 - Calibration routines for anatomical landmark registration
 - Modular pipeline: calibration, relative motion, coordinate transformation, smoothing, visualization, export
@@ -49,7 +49,7 @@ For the reflective markers, you can use reflective fibers or reflective tape (se
 ### Components
 | <img src=".resources/images/mouthpiece_render_blender.png" height="80"/> | <img src=".resources/images/mouth_attachement_render_blender.png" height="80"/> | <img src=".resources/images/headpiece_render_blender.png" height="80"/> | <img src=".resources/images/calibration_tool_render_blender.png" height="60"/> |
 |:------------------------------------------------------------------------:|:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------:|:------------------------------------------------------------------------------:|
-|                                Mouthpiece                                |                                Teeth attachement                                |                                Headpiece                                |                               Digitizing pointer                               |
+|                                Mouthpiece                                |                                Teeth attachment                                 |                                Headpiece                                |                               Digitizing pointer                               |
 
 | <img src=".resources/images/2ba_thread_background.png" height="200"/> | <img src=".resources/images/dart_point.png" height="200"/> | <img src=".resources/images/reflective_fiber.png" height="130"/> | <img src=".resources/images/tmp_dental_glue.png" height="130"/> |
 |:---------------------------------------------------------------------:|:----------------------------------------------------------:|:----------------------------------------------------------------:|:---------------------------------------------------------------:|
@@ -155,6 +155,7 @@ jaw_tracking_system/
 │   ├── test_precision_analysis.py
 │   └── test_qualisys.py
 ├── LICENSE
+├── MANIFEST.in
 ├── README.md
 ├── requirements.txt
 ├── setup.py
@@ -165,17 +166,13 @@ jaw_tracking_system/
 Run the test suite with:
 
 ```bash
-pytest jaw_tracking_system/tests
+pytest tests
 ```
 
 ## License
 
 This project is licensed under the Attribution-NonCommercial-ShareAlike 4.0 International
-(CC BY-NC-SA 4.0).
-
-Copyright (C) 2025 Paul-Otto Müller
-
-See the [LICENSE](./LICENSE) file for details.
+(CC BY-NC-SA 4.0). See the [LICENSE](./LICENSE) file for details.
 
 ## Citation
 
