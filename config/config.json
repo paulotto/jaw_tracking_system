@@ -26,7 +26,8 @@
         "stability_threshold": 0.5,
         "stability_duration": 0.5,
         "capture_window": 1.0,
-        "auto_capture": false,
+        "auto_capture_delay": 0.5,
+        "post_capture_delay": 2.0,
         "require_confirmation": true,
         "calibration_tool_name": "CT",
 
