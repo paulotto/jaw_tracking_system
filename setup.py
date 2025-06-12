@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages, find_packages
 
 version = "1.0.0"
 
@@ -16,8 +16,9 @@ setup(
     author="Paul-Otto Müller",
     author_email="pmueller@sim.tu-darmstadt.de",
     url="https://github.com/paulotto/jaw_tracking_system",
+    download_url=f"https://github.com/paulotto/jaw_tracking_system/tarball/{version}",
     license="CC BY-NC-SA 4.0",
-    packages=find_packages(),
+    packages=["jts"], # find_namespace_packages(),
     include_package_data=True,
     install_requires=[
         "h5py",
@@ -40,13 +41,17 @@ setup(
     keywords="motion-capture jaw-analysis jaw-tracking biomechanics calibration registration",
     entry_points={
         "console_scripts": [
-            "jts-analysis = jts.core:main",
+            "jts-analysis = jts.core:main"
         ],
     },
     package_data={
         # Include config files, if needed
-        "jaw_tracking_system": ["config/config.json", "config/README.md", "README.md"],
+        # "jts": ["README.md", "LICENSE", "requirements.txt"]
     },
+    # data_files=[("jts/config", ["config/config.json", "config/README.md"]),
+    #             ("jts/models", ["models/JTS_Models.FCStd", "models/JTS_Calibration_Tool.stl",
+    #                         "models/JTS_Head_Marker.stl", "models/JTS_Mouth_Marker.stl",
+    #                         "models/JTS_Teeth_Attachment.stl"])],
     project_urls={
         "Source": "https://github.com/paulotto/jaw_tracking_system",
         "Bug Tracker": "https://github.com/paulotto/jaw_tracking_system/issues",
