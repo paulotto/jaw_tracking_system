@@ -1,4 +1,8 @@
 from setuptools import setup, find_namespace_packages, find_packages
+from pathlib import Path
+
+current_dir = Path(__file__).parent
+long_description = (current_dir / "README.md").read_text(encoding="utf-8")
 
 version = "1.0.0"
 
@@ -7,11 +11,7 @@ setup(
     version=version,
     description="Modular and flexible jaw motion analysis framework (motion capture, calibration, registration, "
                 "and analysis)",
-    long_description="""
-        JawTrackingSystem (JTS): Modular and flexible jaw motion analysis framework.
-        This package provides an abstract framework for analyzing motion capture data, with specific implementations 
-        for jaw motion analysis. The design allows for easy extension to other motion capture systems beyond Qualisys.
-    """,
+    long_description=long_description,
     long_description_content_type="text/markdown",
     author="Paul-Otto Müller",
     author_email="pmueller@sim.tu-darmstadt.de",
@@ -34,7 +34,7 @@ setup(
         "License :: Other/Proprietary License",
         "Operating System :: OS Independent",
         "Intended Audience :: Science/Research",
-        "Topic :: Scientific/Engineering :: Medical Science Apps",
+        # "Topic :: Scientific/Engineering :: Medical Science Apps",
         "Topic :: Scientific/Engineering :: Information Analysis",
         "Topic :: Scientific/Engineering :: Visualization",
     ],
