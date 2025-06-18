@@ -44,16 +44,17 @@ provided as STL files and inside a FreeCAD project file. You can find the files 
 The mouthpiece, teeth attachment, headpiece, and digitizing pointer are designed to be 3D-printed. 
 Since it isn't easy to 3D-print a sharp point for the digitizing pointer, a dart point is used, which can be attached 
 to a 2BA thread connected to the digitizing pointer's tip.
-For the reflective markers, you can use reflective fibers or reflective tape (see [Components](#components)).
+For the reflective markers, you can use reflective fibers or reflective tape.
+The headpiece can be attached and fastened to the head using hook-and-loop tape (see [Components](#components)).
 
 ### Components
 | <img src=".resources/images/mouthpiece_render_blender.png" height="80"/> | <img src=".resources/images/mouth_attachement_render_blender.png" height="80"/> | <img src=".resources/images/headpiece_render_blender.png" height="80"/> | <img src=".resources/images/calibration_tool_render_blender.png" height="60"/> |
 |:------------------------------------------------------------------------:|:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------:|:------------------------------------------------------------------------------:|
 |                                Mouthpiece                                |                                Teeth attachment                                 |                                Headpiece                                |                               Digitizing pointer                               |
 
-| <img src=".resources/images/2ba_thread_background.png" height="200"/> | <img src=".resources/images/dart_point.png" height="200"/> | <img src=".resources/images/reflective_fiber.png" height="130"/> | <img src=".resources/images/tmp_dental_glue.png" height="130"/> |
-|:---------------------------------------------------------------------:|:----------------------------------------------------------:|:----------------------------------------------------------------:|:---------------------------------------------------------------:|
-|                              2BA thread                               |                         Dart point                         |                         Reflective fiber                         |                      Temporary dental glue                      |
+| <img src=".resources/images/2ba_thread_background.png" height="200"/> | <img src=".resources/images/dart_point.png" height="200"/> | <img src=".resources/images/reflective_fiber.png" height="120"/> | <img src=".resources/images/tmp_dental_glue.png" height="120"/> | <img src=".resources/images/hook_and_loop_tape.png" height="100"/> |
+|:---------------------------------------------------------------------:|:----------------------------------------------------------:|:----------------------------------------------------------------:|:---------------------------------------------------------------:|:------------------------------------------------------------------:|
+|                              2BA thread                               |                         Dart point                         |                         Reflective fiber                         |                      Temporary dental glue                      |                         Hook-and-loop tape                         | 
 
 ## Installation
 
@@ -171,8 +172,16 @@ pytest tests
 
 ## License
 
-This project is licensed under the Attribution-NonCommercial-ShareAlike 4.0 International
-(CC BY-NC-SA 4.0). See the [LICENSE](./LICENSE) file for details.
+This project is only intended for research and educational purposes and is licensed under the 
+Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0). 
+See the [LICENSE](./LICENSE) file for details.
+
+> This license allows you to use, adapt, and distribute the material for **non-commercial** purposes,
+> provided the following conditions are met:
+> 1. Attribution: You must give appropriate credit to the original authors, provide a link to the license, and indicate if changes were made.
+> 2. Non-Commercial: You may not use the material for commercial purposes (e.g., selling or profiting from it, directly or indirectly).
+> 3. ShareAlike: If you create derivative works (e.g., modify or adapt the material), you must distribute them under the same CC BY-NC-SA 4.0 license.
+> 4. No Additional Restrictions: You may not impose additional legal or technological restrictions that prevent others from exercising the rights granted by the license.
 
 ## Citation
 
@@ -183,8 +192,8 @@ If you use this package in your research, please cite:
   author = {Paul-Otto Müller and Sven Suppelt and Mario Kupnik and Oskar von Stryk},
   title = {JawTrackingSystem (JTS): A customizable, low-cost, optical jaw tracking system},
   year = {2025},
-  url = {https://github.com/paulotto/jaw-tracking-system},
-  version = {1.0.0},
+  url = {https://github.com/paulotto/jaw_tracking_system},
+  version = {1.0.3},
   license = {CC BY-NC-SA 4.0}
 }
 ```
