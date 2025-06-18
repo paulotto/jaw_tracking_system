@@ -4,7 +4,7 @@ from pathlib import Path
 current_dir = Path(__file__).parent
 long_description = (current_dir / "README.md").read_text(encoding="utf-8")
 
-version = "1.0.2"
+version = "1.0.3"
 
 setup(
     name="jaw-tracking-system",
