@@ -1,0 +1,83 @@
+cff-version: 1.2.0
+title: >-
+  An Optical Measurement System for Open-Source Tracking of
+  Jaw Motions
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Paul-Otto
+    family-names: Müller
+    affiliation: TU Darmstadt
+    orcid: 'https://orcid.org/0009-0006-2418-458X'
+  - given-names: 'Sven '
+    family-names: Suppelt
+    affiliation: TU Darmstadt
+    orcid: 'https://orcid.org/0000-0002-2338-9333'
+  - given-names: Mario
+    family-names: Kupnik
+    affiliation: TU Darmstadt
+    orcid: 'https://orcid.org/0000-0003-2287-4481'
+  - given-names: Oskar
+    family-names: von Stryk
+    affiliation: TU Darmstadt
+    orcid: 'https://orcid.org/0000-0002-2790-6115'
+repository-code: 'https://github.com/paulotto/jaw_tracking_system'
+url: 'https://paulotto.github.io/projects/jaw-tracking-system/'
+abstract: >-
+  Precise tracking of the jaw kinematics is crucial for
+  diagnosing various musculoskeletal and neuromuscular
+  diseases affecting the masticatory system and for
+  advancing rehabilitative devices such as jaw exoskeletons,
+  a hardly explored research field, to treat these
+  disorders. We introduce an open-source, low-cost, precise,
+  non-invasive, and biocompatible jaw tracking system based
+  on optical motion capture technology to address the need
+  for accessible and adaptable research tools. The system
+  encompasses a complete pipeline from data acquisition,
+  processing, and kinematic analysis to filtering,
+  visualization, and data storage. We evaluated its
+  performance and feasibility in experiments with four
+  participants executing various jaw movements. The system
+  demonstrated reliable kinematic tracking with an estimated
+  precision of (182 ± 47) μm and (0.126 ± 0.034) °.
+  Therefore, the open-source nature of the system and its
+  utility comparable to commercial systems make it suitable
+  for many research and development contexts, especially for
+  applications such as the integration and design of jaw
+  exoskeletons and customized diagnostic protocols. The
+  complete system is available at GitHub with the aim of
+  promoting innovation in temporomandibular disorders
+  research and jaw assistive technology.
+keywords:
+  - jaw tracking
+  - optical motion capture
+  - exoskeletons
+  - rehabilitation robotics
+  - temporomandibular disorders (TMDs)
+  - open-source
+  - sensor systems
+license: CC-BY-NC-SA-4.0
+commit: 5c1f841d7ee85439f70ac787cd2a77f310afc814
+version: 1.0.3
+date-released: '2025-06-18'
+preferred-citation:
+  type: conference-paper
+  authors:
+  - family-names: "Müller"
+    given-names: "Paul-Otto"
+  - family-names: "Suppelt"
+    given-names: "Sven"
+  - family-names: "Kupnik"
+    given-names: "Mario"
+  - family-names: "von Stryk"
+    given-names: "Oskar"
+  title: "An Optical Measurement System for Open-Source Tracking of Jaw Motions"
+  collection-title: "2025 IEEE Sensors"
+  location:
+    name: "Vancouver, Canada"
+  year: 2025
+  publisher:
+    name: "IEEE"
+  status: "accepted"

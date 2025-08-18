@@ -188,13 +188,13 @@ See the [LICENSE](./LICENSE) file for details.
 If you use this package in your research, please cite:
 
 ```
-@software{mueller2025jts,
-  author = {Paul-Otto Müller and Sven Suppelt and Mario Kupnik and Oskar von Stryk},
-  title = {JawTrackingSystem (JTS): A customizable, low-cost, optical jaw tracking system},
-  year = {2025},
-  url = {https://github.com/paulotto/jaw_tracking_system},
-  version = {1.0.3},
-  license = {CC BY-NC-SA 4.0}
+@InProceedings{mueller2025jts,
+  title={An Optical Measurement System for Open-Source Tracking of Jaw Motions},
+  author={Müller, Paul-Otto and Suppelt, Sven and Kupnik, Mario and {von Stryk}, Oskar},
+  booktitle = {2025 IEEE Sensors, Vancouver, Canada},
+  year={2025},
+  publisher = {IEEE},
+  note={Accepted}
 }
 ```
 
