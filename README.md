@@ -194,6 +194,7 @@ If you use this package in your research, please cite:
   booktitle = {2025 IEEE Sensors, Vancouver, Canada},
   year={2025},
   publisher = {IEEE},
+  doi={10.48550/arXiv.2510.01191},
   note={Accepted}
 }
 ```
