@@ -11,7 +11,7 @@ __author__ = "Paul-Otto Müller"
 __copyright__ = "Copyright 2025, Paul-Otto Müller"
 __credits__ = ["Paul-Otto Müller"]
 __license__ = "CC BY-NC-SA 4.0"
-__version__ = "1.0.4"
+__version__ = "1.1.0"
 __maintainer__ = "Paul-Otto Müller"
 __status__ = "Development"
 __date__ = '16.10.2025'
@@ -940,3 +940,438 @@ def relative_rotation(q1: np.ndarray, q2: np.ndarray,
         raise ValueError("output_format must be 'euler' or 'rotvec'")
 
     return q_rel, angles
+
+
+# ============================================================================
+# HDF5 File Loading and Inspection Functions
+# ============================================================================
+
+def inspect_hdf5(filename: Union[str, Path], verbose: bool = True) -> Dict[str, Dict[str, any]]:  # type: ignore
+    """
+    Inspect an HDF5 file and return comprehensive information about its contents.
+
+    Args:
+        filename: Path to HDF5 file
+        verbose: If True, print detailed information to console
+
+    Returns:
+        Dictionary with structure information for each group
+
+    Example:
+        >>> info = hlp.inspect_hdf5('jaw_motion.h5')
+        >>> print(info['T_model_origin_mand_landmark_t']['num_frames'])
+    """
+    filename = Path(filename)
+    if not filename.exists():
+        raise FileNotFoundError(f"HDF5 file not found: {filename}")
+
+    info = {}
+
+    with h5py.File(filename, 'r') as f:
+        if verbose:
+            print(f"\n{'='*80}")
+            print(f"HDF5 File: {filename}")
+            print(f"{'='*80}\n")
+
+        for group_name in f.keys():
+            group = f[group_name]
+            group_info = {}
+
+            # Extract metadata
+            group_info['metadata'] = group.attrs.get('metadata', 'N/A')
+            group_info['sample_rate'] = group.attrs.get('sample_rate', 'N/A')
+            group_info['unit'] = group.attrs.get('unit', 'N/A')
+
+            # Get dataset information
+            datasets = {}
+            for dataset_name in group.keys():  # type: ignore
+                dataset = group[dataset_name]  # type: ignore
+                datasets[dataset_name] = {
+                    'shape': dataset.shape,  # type: ignore
+                    'dtype': dataset.dtype,  # type: ignore
+                    'size_mb': dataset.size * dataset.dtype.itemsize / (1024 * 1024)  # type: ignore
+                }
+
+            group_info['datasets'] = datasets
+
+            # Determine number of frames
+            if 'translations' in group:  # type: ignore
+                group_info['num_frames'] = group['translations'].shape[0]  # type: ignore
+            else:
+                group_info['num_frames'] = 'N/A'
+
+            # Determine rotation format
+            if 'rotations' in group:  # type: ignore
+                rot_shape = group['rotations'].shape  # type: ignore
+                if len(rot_shape) == 2 and rot_shape[1] == 4:
+                    group_info['rotation_format'] = 'quaternion'
+                elif len(rot_shape) == 3 and rot_shape[1:] == (3, 3):
+                    group_info['rotation_format'] = 'matrix'
+                else:
+                    group_info['rotation_format'] = 'unknown'
+            else:
+                group_info['rotation_format'] = 'N/A'
+
+            # Check for derivatives
+            derivative_order = 0
+            for key in group.keys():  # type: ignore
+                if 'derivative_order_' in key:
+                    order = int(key.split('_')[-1])
+                    derivative_order = max(derivative_order, order)
+            group_info['derivative_order'] = derivative_order
+
+            info[group_name] = group_info
+
+            # Print detailed information if verbose
+            if verbose:
+                print(f"Group: {group_name}")
+                print(f"  Metadata: {group_info['metadata'][:100]}..." if len(str(group_info['metadata'])) > 100 else f"  Metadata: {group_info['metadata']}")
+                print(f"  Sample Rate: {group_info['sample_rate']} Hz")
+                print(f"  Unit: {group_info['unit']}")
+                print(f"  Number of Frames: {group_info['num_frames']}")
+                print(f"  Rotation Format: {group_info['rotation_format']}")
+                print(f"  Derivative Order: {group_info['derivative_order']}")
+                print("  Datasets:")
+                for ds_name, ds_info in datasets.items():
+                    print(f"    - {ds_name}: shape={ds_info['shape']}, dtype={ds_info['dtype']}, size={ds_info['size_mb']:.3f} MB")
+                print()
+
+        if verbose:
+            print(f"{'='*80}\n")
+
+    return info
+
+
+def load_hdf5_transformations(filename: Union[str, Path],
+                              group_name: Optional[str] = None,
+                              as_matrices: bool = True) -> Dict[str, any]:  # type: ignore
+    """
+    Load transformation data from HDF5 file.
+
+    Args:
+        filename: Path to HDF5 file
+        group_name: Specific group to load (None = load all groups)
+        as_matrices: If True, convert quaternions to rotation matrices
+
+    Returns:
+        Dictionary containing transformation data:
+        {
+            'group_name': {
+                'transformations': np.ndarray (N, 4, 4) - Homogeneous transformation matrices
+                'translations': np.ndarray (N, 3) - Translation vectors
+                'rotations': np.ndarray (N, 3, 3) or (N, 4) - Rotation matrices or quaternions
+                'sample_rate': float - Sample rate in Hz
+                'unit': str - Unit of translations
+                'metadata': str - Metadata string
+                'derivatives': dict - Optional derivatives if stored
+            }
+        }
+
+    Example:
+        >>> data = hlp.load_hdf5_transformations('jaw_motion.h5')
+        >>> transforms = data['T_model_origin_mand_landmark_t']['transformations']
+        >>> print(f"Loaded {len(transforms)} transformation matrices")
+    """
+    filename = Path(filename)
+    if not filename.exists():
+        raise FileNotFoundError(f"HDF5 file not found: {filename}")
+
+    results = {}
+
+    with h5py.File(filename, 'r') as f:
+        groups_to_load = [group_name] if group_name else list(f.keys())
+
+        for gname in groups_to_load:
+            if gname not in f:
+                logger.warning(f"Group '{gname}' not found in HDF5 file")
+                continue
+
+            group = f[gname]
+            data = {}
+
+            # Load translations
+            if 'translations' in group:  # type: ignore
+                data['translations'] = group['translations'][:]  # type: ignore
+            else:
+                raise ValueError(f"Group '{gname}' does not contain 'translations' dataset")
+
+            # Load rotations
+            if 'rotations' in group:  # type: ignore
+                rotations_data = group['rotations'][:]  # type: ignore
+
+                # Determine format and convert if needed
+                if rotations_data.shape[1] == 4:  # type: ignore # Quaternions (scalar-first format)
+                    if as_matrices:
+                        # Convert quaternions to rotation matrices
+                        data['rotations'] = np.array([
+                            R.from_quat(q[[1, 2, 3, 0]]).as_matrix()  # Convert from scalar-first to scipy format
+                            for q in rotations_data  # type: ignore
+                        ])
+                    else:
+                        data['rotations'] = rotations_data
+                else:  # Already rotation matrices
+                    data['rotations'] = rotations_data
+            else:
+                raise ValueError(f"Group '{gname}' does not contain 'rotations' dataset")
+
+            # Construct 4x4 transformation matrices
+            if as_matrices and data['rotations'].ndim == 3:  # type: ignore
+                N = len(data['translations'])  # type: ignore
+                data['transformations'] = np.zeros((N, 4, 4))
+                data['transformations'][:, :3, :3] = data['rotations']
+                data['transformations'][:, :3, 3] = data['translations']
+                data['transformations'][:, 3, 3] = 1.0
+
+            # Load metadata and attributes
+            data['sample_rate'] = group.attrs.get('sample_rate', None)
+            data['unit'] = group.attrs.get('unit', 'mm')
+            data['metadata'] = group.attrs.get('metadata', '')
+
+            # Load derivatives if available
+            derivatives = {}
+            for key in group.keys():  # type: ignore
+                if 'derivative' in key:
+                    derivatives[key] = group[key][:]  # type: ignore
+            if derivatives:
+                data['derivatives'] = derivatives
+
+            results[gname] = data
+
+            logger.info(f"Loaded '{gname}': {len(data['translations'])} frames at {data['sample_rate']} Hz")  # type: ignore
+
+    return results
+
+
+def visualize_hdf5_trajectory(filename: Union[str, Path],
+                              group_name: Optional[str] = None,
+                              frame_step: int = 100,
+                              show_frames: bool = True,
+                              frame_scale: Optional[float] = None,
+                              save_path: Optional[Union[str, Path]] = None,
+                              title: Optional[str] = None) -> Tuple[Figure, Axes]:
+    """
+    Visualize trajectory from HDF5 file in 3D.
+
+    Args:
+        filename: Path to HDF5 file
+        group_name: Specific group to visualize (None = first group)
+        frame_step: Plot coordinate frame every N frames
+        show_frames: Whether to show coordinate frames along trajectory
+        frame_scale: Scale factor for coordinate frame arrows (None = auto-calculate as 3% of trajectory range)
+        save_path: Optional path to save the figure
+        title: Plot title (auto-generated if None)
+
+    Returns:
+        Figure and Axes objects
+
+    Example:
+        >>> fig, ax = hlp.visualize_hdf5_trajectory('jaw_motion.h5', frame_step=200)
+        >>> plt.show()
+    """
+    # Load data
+    data = load_hdf5_transformations(filename, group_name, as_matrices=True)
+
+    if not data:
+        raise ValueError(f"No data loaded from {filename}")
+
+    # Use first group if not specified
+    if group_name is None:
+        group_name = list(data.keys())[0]
+
+    if group_name not in data:
+        raise ValueError(f"Group '{group_name}' not found in loaded data")
+
+    group_data = data[group_name]
+    T_t = group_data['transformations']
+    unit = group_data['unit']
+    sample_rate = group_data['sample_rate']
+
+    # Create title
+    if title is None:
+        title = f"Trajectory: {group_name}\n({len(T_t)} frames at {sample_rate} Hz)"
+
+    # Create 3D plot
+    fig = plt.figure(figsize=(12, 9))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Extract trajectory
+    trajectory = T_t[:, :3, 3]
+
+    # Auto-scale frame size based on trajectory extent
+    if frame_scale is None or frame_scale <= 0:
+        # Calculate trajectory range (max extent in any dimension)
+        trajectory_range = np.array([
+            trajectory[:, 0].max() - trajectory[:, 0].min(),
+            trajectory[:, 1].max() - trajectory[:, 1].min(),
+            trajectory[:, 2].max() - trajectory[:, 2].min()
+        ]).max()
+        
+        # Set frame scale to 2-5% of trajectory range
+        frame_scale = trajectory_range * 0.03
+        logger.debug(f"Auto-calculated frame_scale: {frame_scale:.4f} {unit} "
+                    f"(3% of trajectory range: {trajectory_range:.4f} {unit})")
+
+    # Plot trajectory line
+    ax.plot(trajectory[:, 0], trajectory[:, 1], trajectory[:, 2],
+            'b-', linewidth=2, label='Trajectory', alpha=0.7)
+
+    # Plot start and end points
+    ax.scatter(*trajectory[0], color='green', s=100, label='Start', marker='o', zorder=10)
+    ax.scatter(*trajectory[-1], color='red', s=100, label='End', marker='s', zorder=10)
+
+    # Plot coordinate frames
+    if show_frames and frame_step > 0:
+        frame_indices = range(0, len(T_t), frame_step)
+        for idx in frame_indices:
+            origin = T_t[idx, :3, 3]
+            R_mat = T_t[idx, :3, :3]
+
+            # Draw coordinate axes
+            colors = ['r', 'g', 'b']
+            axis_labels = ['X', 'Y', 'Z']
+            for i, (color, label) in enumerate(zip(colors, axis_labels)):
+                axis = R_mat[:, i] * frame_scale
+                ax.quiver(origin[0], origin[1], origin[2],
+                         axis[0], axis[1], axis[2],
+                         color=color, alpha=0.6, arrow_length_ratio=0.3,
+                         linewidth=1.5)
+
+    # Set labels and title
+    ax.set_xlabel(f'X [{unit}]')
+    ax.set_ylabel(f'Y [{unit}]')
+    ax.set_zlabel(f'Z [{unit}]')  # type: ignore
+    ax.set_title(title)
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+
+    # Equal aspect ratio
+    max_range = np.array([
+        trajectory[:, 0].max() - trajectory[:, 0].min(),
+        trajectory[:, 1].max() - trajectory[:, 1].min(),
+        trajectory[:, 2].max() - trajectory[:, 2].min()
+    ]).max() / 2.0
+
+    mid_x = (trajectory[:, 0].max() + trajectory[:, 0].min()) * 0.5
+    mid_y = (trajectory[:, 1].max() + trajectory[:, 1].min()) * 0.5
+    mid_z = (trajectory[:, 2].max() + trajectory[:, 2].min()) * 0.5
+
+    ax.set_xlim(mid_x - max_range, mid_x + max_range)
+    ax.set_ylim(mid_y - max_range, mid_y + max_range)
+    ax.set_zlim(mid_z - max_range, mid_z + max_range)  # type: ignore
+
+    plt.tight_layout()
+
+    # Save if requested
+    if save_path:
+        save_path = Path(save_path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+        logger.info(f"Saved trajectory plot to {save_path}")
+
+    return fig, ax
+
+
+def compare_hdf5_trajectories(filename: Union[str, Path],
+                              group_names: Optional[List[str]] = None,
+                              component: str = 'translations',
+                              save_path: Optional[Union[str, Path]] = None) -> Tuple[Figure, Axes]:
+    """
+    Compare multiple trajectories from HDF5 file (e.g., raw vs smoothed).
+
+    Args:
+        filename: Path to HDF5 file
+        group_names: List of groups to compare (None = all groups)
+        component: What to plot - 'translations', 'rotations_euler', or 'rotations_rotvec'
+        save_path: Optional path to save the figure
+
+    Returns:
+        Figure and Axes objects
+
+    Example:
+        >>> fig, ax = hlp.compare_hdf5_trajectories('jaw_motion.h5',
+        ...     group_names=['T_model_origin_mand_landmark_t', 'T_model_origin_mand_landmark_t_smooth'])
+        >>> plt.show()
+    """
+    # Load data
+    data = load_hdf5_transformations(filename, as_matrices=True)
+
+    if not data:
+        raise ValueError(f"No data loaded from {filename}")
+
+    # Use all groups if not specified
+    if group_names is None:
+        group_names = list(data.keys())
+
+    # Validate groups exist
+    for gname in group_names:
+        if gname not in data:
+            raise ValueError(f"Group '{gname}' not found in HDF5 file")
+
+    # Create figure
+    if component == 'translations':
+        fig, axes = plt.subplots(3, 1, figsize=(12, 9), sharex=True)
+        labels = ['X', 'Y', 'Z']
+        ylabel_base = 'Translation'
+    elif component == 'rotations_euler':
+        fig, axes = plt.subplots(3, 1, figsize=(12, 9), sharex=True)
+        labels = ['Roll (X)', 'Pitch (Y)', 'Yaw (Z)']
+        ylabel_base = 'Rotation'
+    elif component == 'rotations_rotvec':
+        fig, axes = plt.subplots(3, 1, figsize=(12, 9), sharex=True)
+        labels = ['ωX', 'ωY', 'ωZ']
+        ylabel_base = 'Rotation Vector'
+    else:
+        raise ValueError("component must be 'translations', 'rotations_euler', or 'rotations_rotvec'")
+
+    # Get unit from first group
+    unit = data[group_names[0]]['unit']
+    sample_rate = data[group_names[0]]['sample_rate']
+
+    # Plot each group
+    colors = plt.cm.tab10(np.linspace(0, 1, len(group_names)))  # type: ignore
+
+    for idx, gname in enumerate(group_names):
+        group_data = data[gname]
+
+        # Prepare data based on component
+        if component == 'translations':
+            plot_data = group_data['translations']
+            unit_str = unit
+        elif component == 'rotations_euler':
+            # Convert rotation matrices to Euler angles
+            rotations = group_data['rotations']
+            plot_data = np.array([
+                R.from_matrix(rot).as_euler('xyz', degrees=True)
+                for rot in rotations
+            ])
+            unit_str = 'deg'
+        else:  # rotations_rotvec
+            rotations = group_data['rotations']
+            plot_data = np.array([
+                R.from_matrix(rot).as_rotvec(degrees=True)
+                for rot in rotations
+            ])
+            unit_str = 'deg'
+
+        # Time vector
+        time = np.arange(len(plot_data)) / sample_rate
+
+        # Plot each component
+        for i, (ax, label) in enumerate(zip(axes, labels)):
+            ax.plot(time, plot_data[:, i], label=gname, color=colors[idx], alpha=0.7, linewidth=1.5)
+            ax.set_ylabel(f'{ylabel_base} {label} [{unit_str}]')
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+
+    axes[-1].set_xlabel('Time [s]')
+    fig.suptitle(f'Trajectory Comparison: {component}', fontsize=14, fontweight='bold')
+    plt.tight_layout()
+
+    # Save if requested
+    if save_path:
+        save_path = Path(save_path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+        logger.info(f"Saved comparison plot to {save_path}")
+
+    return fig, axes
