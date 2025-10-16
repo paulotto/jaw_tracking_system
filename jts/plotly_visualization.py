@@ -17,23 +17,20 @@ __author__ = "Paul-Otto Müller"
 __copyright__ = "Copyright 2025, Paul-Otto Müller"
 __credits__ = ["Paul-Otto Müller"]
 __license__ = "CC BY-NC-SA 4.0"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __maintainer__ = "Paul-Otto Müller"
 __status__ = "Development"
-__date__ = '03.06.2025'
+__date__ = '16.10.2025'
 __url__ = "https://github.com/paulotto/jaw_tracking_system"
 
 import os
 import h5py
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union, Any
-import json
-import logging
+from typing import Dict, List, Optional, Union
 
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import plotly.io as pio
 from scipy.spatial.transform import Rotation as R
 
 # Import the helper module for logger setup
@@ -78,15 +75,15 @@ class JawMotionVisualizer:
                 group = f[group_name]
 
                 # Load translations
-                translations = group['translations'][:]
+                translations = group['translations'][:]  # type: ignore
 
                 # Load rotations (quaternions or matrices)
-                rotations_data = group['rotations'][:]
-                if rotations_data.shape[1] == 4:  # Quaternions
+                rotations_data = group['rotations'][:]  # type: ignore
+                if rotations_data.shape[1] == 4:  # Quaternions  # type: ignore
                     # Convert to rotation matrices for visualization
                     rotations = np.array([
                         R.from_quat(q[[1, 2, 3, 0]]).as_matrix()  # Convert from scalar-first
-                        for q in rotations_data
+                        for q in rotations_data  # type: ignore
                     ])
                 else:  # Already rotation matrices
                     rotations = rotations_data
@@ -102,7 +99,7 @@ class JawMotionVisualizer:
                 # Store metadata
                 self.metadata[group_name] = group.attrs.get('metadata', '')
 
-                logger.info(f"Loaded {group_name}: {len(translations)} frames")
+                logger.info(f"Loaded {group_name}: {len(translations)} frames")  # type: ignore
 
     def get_available_groups(self) -> List[str]:
         """Get list of available trajectory groups in the HDF5 file."""
@@ -538,7 +535,7 @@ class JawMotionVisualizer:
                 'active': 0,
                 'steps': [
                     {
-                        'args': [[f.name], {
+                        'args': [[f.name], {  # type: ignore
                             'frame': {'duration': 0, 'redraw': True},
                             'mode': 'immediate',
                             'transition': {'duration': 0}
@@ -546,7 +543,7 @@ class JawMotionVisualizer:
                         'label': str(i),
                         'method': 'animate'
                     }
-                    for i, f in enumerate(fig.frames)
+                    for i, f in enumerate(fig.frames)  # type: ignore
                 ]
             }]
         )
@@ -587,7 +584,7 @@ class JawMotionVisualizer:
 
         # Ensure kaleido is installed for static export
         try:
-            import kaleido
+            import kaleido  # type: ignore  # noqa: F401
         except ImportError:
             logger.error("kaleido package is required for static export. Install with: pip install kaleido")
             raise
@@ -736,9 +733,11 @@ def visualize_hdf5_file(hdf5_path: Union[str, Path],
     if show_interactive:
         fig_2d.show()
 
+    # Get base name for file outputs
+    base_name = hdf5_path.stem if isinstance(hdf5_path, Path) else Path(hdf5_path).stem
+
     # Export if output directory specified
     if output_dir:
-        base_name = hdf5_path.stem
 
         # Export 3D plot
         for fmt in export_formats:
@@ -899,6 +898,8 @@ def create_trajectory_animation(hdf5_path: Union[str, Path],
     if trajectory_name is None:
         trajectory_name = list(viz.data.keys())[0]
         logger.info(f"No trajectory specified, using: {trajectory_name}")
+    
+    assert trajectory_name is not None, "trajectory_name must be set"
 
     # Create animation
     fig = viz.animate_trajectory(
@@ -966,7 +967,7 @@ def main():
         return
 
     # Single file visualization
-    figures = visualize_hdf5_file(
+    _ = visualize_hdf5_file(  # Result not needed in CLI
         Path(args.hdf5_file),
         output_dir=args.output_dir,
         show_interactive=not args.no_show,
@@ -1003,7 +1004,7 @@ def main():
             # Will use first available
             anim_group = None
 
-        fig_anim = create_trajectory_animation(
+        _ = create_trajectory_animation(  # Result not needed in CLI
             args.hdf5_file,
             trajectory_name=anim_group,
             output_path=Path(args.output_dir) / "animation.html" if args.output_dir else None,

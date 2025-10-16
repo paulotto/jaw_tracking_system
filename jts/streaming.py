@@ -35,10 +35,10 @@ __author__ = "Paul-Otto Müller"
 __copyright__ = "Copyright 2025, Paul-Otto Müller"
 __credits__ = ["Paul-Otto Müller"]
 __license__ = "CC BY-NC-SA 4.0"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __maintainer__ = "Paul-Otto Müller"
 __status__ = "Development"
-__date__ = '03.06.2025'
+__date__ = '16.10.2025'
 __url__ = "https://github.com/paulotto/jaw-tracking-system"
 
 import time
@@ -778,7 +778,7 @@ class CalibrationController(ABC):
         Returns:
             Tuple of (is_stable, variance) where variance is in mm
         """
-        if len(self.stability_buffer) < self.stability_buffer.maxlen:
+        if self.stability_buffer.maxlen is None or len(self.stability_buffer) < self.stability_buffer.maxlen:
             return False, float('inf')
 
         # Extract tool positions from buffer

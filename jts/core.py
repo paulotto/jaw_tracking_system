@@ -48,10 +48,10 @@ __author__ = "Paul-Otto Müller"
 __copyright__ = "Copyright 2025, Paul-Otto Müller"
 __credits__ = ["JawTrackingSystem (JTS) (c) Paul-Otto Müller"]
 __license__ = "CC BY-NC-SA 4.0"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __maintainer__ = "Paul-Otto Müller"
 __status__ = "Development"
-__date__ = '30.05.2025'
+__date__ = '16.10.2025'
 __url__ = "https://github.com/paulotto/jaw_tracking_system"
 
 import os
@@ -63,7 +63,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from scipy.spatial.transform import Slerp
-from typing import Dict, List, Tuple, Optional, Any, Union
+from typing import Dict, List, Tuple, Optional, Any, Union, Callable
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -148,7 +148,7 @@ class MultiIntervalProcessor:
         logger.info(f"Initialized MultiIntervalProcessor with {interpolation_method.value} interpolation")
 
     def process_intervals(self,
-                          data_source: callable,
+                          data_source: Callable[[FrameInterval], np.ndarray],
                           intervals: List[FrameInterval],
                           connect: bool = True) -> np.ndarray:
         """
@@ -619,7 +619,11 @@ class JawMotionAnalysis:
         """Load motion capture data from file."""
         filename = self.config['data_source']['filename']
         self._log_step(f"Loading motion capture data from {filename}")
-        self.motion_data.load_data(filename)
+        
+        if not hasattr(self.motion_data, 'load_data'):
+            raise RuntimeError("Streaming data sources do not support load_data(). Data is loaded in real-time.")
+        
+        self.motion_data.load_data(filename)  # type: ignore
 
         # Visualize raw data if configured
         if self.config.get('visualization', {}).get('raw_data', False):
@@ -632,7 +636,7 @@ class JawMotionAnalysis:
             viz_config = self.config.get('visualization', {})
             experiment_interval = self.config['analysis']['experiment']['frame_interval']
 
-            self.motion_data.plot_utils.visualize_qualysis_data(
+            self.motion_data.plot_utils.visualize_qualysis_data(  # type: ignore
                 three_d=viz_config.get('raw_data_3d', False),
                 frame_interval=experiment_interval
             )
@@ -702,8 +706,11 @@ class JawMotionAnalysis:
 
             # Get relative motion for this interval
             T_relative = self.motion_data.compute_relative_transform(
-                reference_body, moving_body, interval
+                reference_body, moving_body, interval  # type: ignore
             )
+
+            if T_relative is None:
+                raise RuntimeError(f"Failed to compute relative transform between {reference_body} and {moving_body}")
 
             # Apply calibration transform if available
             if self.calibration_transforms:
@@ -743,7 +750,11 @@ class JawMotionAnalysis:
             # Extract calibration points
             points = []
             bodies = calib_data['rigid_bodies']
-            rb_list = [self.motion_data.rigid_bodies[body] for body in bodies]
+            
+            if not hasattr(self.motion_data, 'rigid_bodies'):
+                raise RuntimeError("Streaming data sources do not support rigid_bodies attribute.")
+            
+            rb_list = [self.motion_data.rigid_bodies[body] for body in bodies]  # type: ignore
 
             for point_idx, point_config in enumerate(calib_data['points']):
                 interval = FrameInterval(
@@ -847,10 +858,13 @@ class JawMotionAnalysis:
                 reference_body = motion_config['reference_body']
                 moving_body = motion_config['moving_body']
 
-                def get_motion(interval):
-                    return self.motion_data.compute_relative_transform(
-                        reference_body, moving_body, interval
+                def get_motion(interval: FrameInterval) -> np.ndarray:
+                    result = self.motion_data.compute_relative_transform(
+                        reference_body, moving_body, interval  # type: ignore
                     )
+                    if result is None:
+                        raise RuntimeError(f"Failed to compute relative transform for interval {interval.name}")
+                    return result
 
                 T_relative_t = processor.process_intervals(
                     get_motion,
@@ -893,9 +907,22 @@ class JawMotionAnalysis:
             name="experiment"
         )
 
-        T_relative_t = self.motion_data.compute_relative_transform(
-            reference_body, moving_body, interval
-        )
+        # Handle both offline (FrameInterval) and streaming (window_size) APIs
+        # Check if this is a streaming data source by checking class name
+        if 'Streaming' in self.motion_data.__class__.__name__:
+            # Streaming API - convert FrameInterval to window size
+            window_size = interval.end - interval.start + 1
+            T_relative_t = self.motion_data.compute_relative_transform(
+                reference_body, moving_body, window_size  # type: ignore
+            )
+        else:
+            # Offline API - use FrameInterval directly
+            T_relative_t = self.motion_data.compute_relative_transform(
+                reference_body, moving_body, interval  # type: ignore
+            )
+
+        if T_relative_t is None:
+            raise RuntimeError(f"Failed to compute relative transform between {reference_body} and {moving_body}")
 
         return T_relative_t
 
@@ -925,6 +952,10 @@ class JawMotionAnalysis:
         # Apply transformation to each frame
         # T_max_marker_mand_landmark_t = T_max_marker_mand_marker_t @ T_mand_marker_mand_landmark
         T_marker_motion = self.trajectories['T_max_marker_mand_marker_t']
+        
+        if T_marker_motion is None:
+            raise RuntimeError("Marker motion trajectory not available. Run compute_relative_motion first.")
+        
         T_landmark_motion = np.array([
             T_frame @ T_mand_marker_landmark for T_frame in T_marker_motion
         ])
@@ -991,6 +1022,10 @@ class JawMotionAnalysis:
         # Apply registration to landmark trajectory
         # T_model_origin_mand_landmark_t = T_model_origin_max_marker @ T_max_marker_mand_landmark_t
         T_landmark_in_marker = self.trajectories['T_max_marker_mand_landmark_t']
+        
+        if T_landmark_in_marker is None:
+            raise RuntimeError("Landmark trajectory not available. Run transform_to_ref_markers_coordinates first.")
+        
         T_landmark_in_model = np.array([
             self.T_model_origin_max_marker @ T_frame for T_frame in T_landmark_in_marker
         ])
@@ -1261,7 +1296,11 @@ class JawMotionAnalysis:
         # Add raw trajectory if available
         if self.trajectories['T_model_origin_mand_landmark_t'] is not None:
             transforms.append(self.trajectories['T_model_origin_mand_landmark_t'])
-            sample_rates.append(self.motion_data.frame_rate)
+            # Streaming data doesn't have frame_rate attribute
+            frame_rate = getattr(self.motion_data, 'frame_rate', None)
+            if frame_rate is None:
+                raise RuntimeError("Frame rate not available. Streaming data sources do not support HDF5 export.")
+            sample_rates.append(frame_rate)
             metadata_list.append(f"Raw T_model_origin_mand_landmark_t. Config: {json.dumps(self.config)}")
             group_names.append('T_model_origin_mand_landmark_t')
 
@@ -1269,7 +1308,10 @@ class JawMotionAnalysis:
         if (self.trajectories['T_model_origin_mand_landmark_t_smooth'] is not None and
                 self.active_trajectory_label == "smoothed"):
             transforms.append(self.trajectories['T_model_origin_mand_landmark_t_smooth'])
-            sample_rates.append(self.motion_data.frame_rate)
+            frame_rate = getattr(self.motion_data, 'frame_rate', None)
+            if frame_rate is None:
+                raise RuntimeError("Frame rate not available. Streaming data sources do not support HDF5 export.")
+            sample_rates.append(frame_rate)
             smooth_config = self.config['analysis']['smoothing']
             metadata_list.append(
                 f"Smoothed T_model_origin_mand_landmark_t. "
@@ -1355,7 +1397,7 @@ class JawMotionAnalysis:
         return results
 
 
-def validation(paths: list[str], scale_factor: float = 1.0, labels: list[str] = None) -> None:
+def validation(paths: list[str], scale_factor: float = 1.0, labels: Optional[list[str]] = None) -> None:
     """
     Validates simulated trajectory data against ground truth and optionally feasible poses.
 
@@ -1565,7 +1607,7 @@ def main():
         logger.info("\n" + "=" * 60)
         logger.info("✓ ANALYSIS COMPLETED SUCCESSFULLY")
         logger.info("=" * 60)
-        logger.info(f"Processed trajectories:")
+        logger.info("Processed trajectories:")
         for name, trajectory in results.items():
             if trajectory is not None:
                 logger.info(f"  - {name}: {trajectory.shape[0]} frames")

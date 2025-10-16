@@ -15,10 +15,10 @@ __author__ = "Paul-Otto Müller"
 __copyright__ = "Copyright 2025, Paul-Otto Müller"
 __credits__ = ["Paul-Otto Müller"]
 __license__ = "GNU GPLv3"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __maintainer__ = "Paul-Otto Müller"
 __status__ = "Development"
-__date__ = '30.05.2025'
+__date__ = '16.10.2025'
 __url__ = "https://github.com/paulotto/jaw_tracking_system"
 
 import numpy as np
@@ -136,8 +136,8 @@ def test_store_transformations_scale_and_unit(tmp_path):
     import h5py
     with h5py.File(out_file, 'r') as f:
         group = f['T_0']
-        translations = group['translations'][:]
+        translations = group['translations'][:]  # type: ignore
         # Should be scaled by 0.01
-        np.testing.assert_allclose(translations[0], [0.01, 0.02, 0.03])
-        np.testing.assert_allclose(translations[1], [0.04, 0.05, 0.06])
+        np.testing.assert_allclose(translations[0], [0.01, 0.02, 0.03])  # type: ignore
+        np.testing.assert_allclose(translations[1], [0.04, 0.05, 0.06])  # type: ignore
         assert group.attrs['unit'] == 'cm'

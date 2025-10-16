@@ -13,18 +13,17 @@ __author__ = "Paul-Otto Müller"
 __copyright__ = "Copyright 2025, Paul-Otto Müller"
 __credits__ = ["Paul-Otto Müller"]
 __license__ = "CC BY-NC-SA 4.0"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __maintainer__ = "Paul-Otto Müller"
 __status__ = "Development"
-__date__ = '03.06.2025'
+__date__ = '16.10.2025'
 __url__ = "https://github.com/paulotto/jaw_tracking_system"
 
 import time
 import threading
 
 from typing import Dict, List, Any, Tuple
-from datetime import datetime, timedelta
-from collections import deque
+from datetime import datetime
 from enum import Enum, auto
 
 import numpy as np
@@ -255,7 +254,10 @@ class ButtonTriggeredCalibration(stm.CalibrationController):
                 landmark['frame_count'] = len(self._capture_frames)
 
                 # Emit progress update
-                progress = (time.time() - self._capture_start_time) / capture_duration
+                if self._capture_start_time is not None:
+                    progress = (time.time() - self._capture_start_time) / capture_duration
+                else:
+                    progress = 0.0
                 self._emit_event('capture_progress', {
                     'landmark': landmark['name'],
                     'progress': progress,
@@ -1001,8 +1003,11 @@ class GuidedSequentialCalibration(stm.CalibrationController):
 
             elif is_stable and self._countdown_active:
                 # Update countdown
-                elapsed = current_time - self._countdown_start
-                remaining = max(0, self.countdown_duration - elapsed)
+                if self._countdown_start is not None:
+                    elapsed = current_time - self._countdown_start
+                    remaining = max(0, self.countdown_duration - elapsed)
+                else:
+                    remaining = self.countdown_duration
 
                 feedback['countdown_active'] = True
                 feedback['countdown_remaining'] = remaining
@@ -1025,7 +1030,7 @@ class GuidedSequentialCalibration(stm.CalibrationController):
             self._emit_event('guidance_feedback', feedback)
             last_feedback_time = current_time
 
-    def _assess_capture_quality(self) -> Tuple[float, Dict[str, float]]:
+    def _assess_capture_quality(self) -> Tuple[float, Dict[str, Any]]:
         """
         Assess the quality of the current capture.
 

@@ -22,10 +22,10 @@ __author__ = "Paul-Otto Müller"
 __copyright__ = "Copyright 2025, Paul-Otto Müller"
 __credits__ = ["Paul-Otto Müller"]
 __license__ = "CC BY-NC-SA 4.0"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __maintainer__ = "Paul-Otto Müller"
 __status__ = "Development"
-__date__ = '02.06.2025'
+__date__ = '16.10.2025'
 __url__ = "https://github.com/paulotto/jaw_tracking_system"
 
 import h5py
@@ -158,11 +158,11 @@ class JawMotionPrecisionAnalyzer:
             group = f[group_name]
 
             # Extract data
-            translations = group['translations'][:]
-            sample_rate = group.attrs['sample_rate']
+            translations = group['translations'][:]  # type: ignore
+            sample_rate = group.attrs['sample_rate']  # type: ignore
 
             # Get unit and convert to mm if necessary
-            unit = group.attrs.get('unit', 'mm')  # Default to mm if not specified
+            unit = group.attrs.get('unit', 'mm')  # Default to mm if not specified  # type: ignore
 
             # Define conversion factors to mm
             unit_to_mm = {
@@ -191,16 +191,16 @@ class JawMotionPrecisionAnalyzer:
 
             if conversion_factor != 1.0:
                 logger.info(f"Converting translations from {unit} to mm (factor: {conversion_factor})")
-                translations = translations * conversion_factor
+                translations = translations * conversion_factor  # type: ignore
 
             # Handle rotations (quaternions or matrices)
-            if 'rotations' in group:
-                rot_data = group['rotations'][:]
-                if rot_data.shape[-1] == 4:  # Quaternions
+            if 'rotations' in group:  # type: ignore
+                rot_data = group['rotations'][:]  # type: ignore
+                if rot_data.shape[-1] == 4:  # Quaternions  # type: ignore
                     # Convert to rotation matrices
                     rotations = np.array([
-                        R.from_quat(rot_data[i, [1, 2, 3, 0]]).as_matrix()
-                        for i in range(len(rot_data))
+                        R.from_quat(rot_data[i, [1, 2, 3, 0]]).as_matrix()  # type: ignore
+                        for i in range(len(rot_data))  # type: ignore
                     ])
                 else:  # Already matrices
                     rotations = rot_data
@@ -208,7 +208,7 @@ class JawMotionPrecisionAnalyzer:
                 raise ValueError("No rotation data found in HDF5 file")
 
             # Build transformation matrices
-            n_frames = len(translations)
+            n_frames = len(translations)  # type: ignore
             transformations = np.zeros((n_frames, 4, 4))
             transformations[:, :3, :3] = rotations
             transformations[:, :3, 3] = translations  # Now in mm
@@ -226,7 +226,7 @@ class JawMotionPrecisionAnalyzer:
         logger.info(f"Loaded {n_frames} frames at {sample_rate} Hz")
         logger.info(f"Data unit: {unit} (converted to mm for analysis)")
 
-        return transformations, sample_rate, metadata
+        return transformations, float(sample_rate), metadata  # type: ignore
 
     def compute_frequency_spectrum(self, transformations: np.ndarray,
                                    sample_rate: float,
@@ -320,7 +320,7 @@ class JawMotionPrecisionAnalyzer:
         """
         fig, axes = plt.subplots(2, 2, figsize=(14, 10))
         if window_title is not None:
-            fig.canvas.manager.set_window_title(window_title)
+            fig.canvas.manager.set_window_title(window_title)  # type: ignore
         fig.suptitle('Frequency Spectrum Analysis for Cutoff Selection', fontsize=16)
 
         # Plot 1: Translation spectra per axis
@@ -540,8 +540,8 @@ class JawMotionPrecisionAnalyzer:
         # Find frequency where cumulative power exceeds percentage
         idx = np.where(cumulative_percentage >= percentage)[0]
         if len(idx) > 0:
-            return freqs[idx[0]]
-        return freqs[-1]
+            return float(freqs[idx[0]])
+        return float(freqs[-1])
 
     @staticmethod
     def _estimate_frequency_dependent_noise_floor(freqs: np.ndarray, psd: np.ndarray,
@@ -663,7 +663,7 @@ class JawMotionPrecisionAnalyzer:
         # Find where SNR drops below threshold
         below_threshold = np.where(snr_db < snr_threshold_db)[0]
         if len(below_threshold) > 0:
-            return freqs[below_threshold[0]]
+            return float(freqs[below_threshold[0]])
 
         return JawMotionPrecisionAnalyzer._find_knee_point(freqs, psd)  # Fallback
 
@@ -790,7 +790,7 @@ class JawMotionPrecisionAnalyzer:
         # Create figure
         fig, axes = plt.subplots(2, 2, figsize=(14, 10))
         if window_title is not None:
-            fig.canvas.manager.set_window_title(window_title)
+            fig.canvas.manager.set_window_title(window_title)  # type: ignore
         fig.suptitle('Cutoff Frequency Analysis', fontsize=16)
 
         # 1. PSD with all suggestions
@@ -798,7 +798,7 @@ class JawMotionPrecisionAnalyzer:
         ax.loglog(freqs, psd, 'b-', linewidth=2, label='Translation PSD')
 
         # Plot all suggestions
-        colors = plt.cm.rainbow(np.linspace(0, 1, len(suggestions)))
+        colors = plt.cm.rainbow(np.linspace(0, 1, len(suggestions)))  # type: ignore
         for (method, freq), color in zip(suggestions.items(), colors):
             ax.axvline(freq, color=color, linestyle='--', alpha=0.7,
                        label=f'{method}: {freq:.2f} Hz')
@@ -970,7 +970,7 @@ class JawMotionPrecisionAnalyzer:
                            f"Setting to 0.95 * Nyquist")
             normalized_cutoff = 0.95
 
-        b, a = signal.butter(filter_order, normalized_cutoff, btype='low')
+        b, a = signal.butter(filter_order, normalized_cutoff, btype='low')  # type: ignore
 
         logger.info(f"Designed Butterworth filter: order={filter_order}, "
                     f"cutoff={self.cutoff_frequency} Hz, fs={sample_rate} Hz")
@@ -1078,7 +1078,7 @@ class JawMotionPrecisionAnalyzer:
         b, a = self.design_lowpass_filter(sample_rate)
 
         # Compute frequency response
-        w, h = signal.freqz(b, a, worN=8000, fs=sample_rate)
+        w, h = signal.freqz(b, a, worN=8000, fs=sample_rate)  # type: ignore
 
         # Account for filtfilt (squared response)
         h_filtfilt = h ** 2
@@ -1301,8 +1301,8 @@ class JawMotionPrecisionAnalyzer:
             mean_translation_error=mean_trans,
             rms_rotation=rms_rot,
             rms_rotation_per_axis=rms_rot_per_axis,
-            std_rotation=std_rot,
-            mean_rotation_error=mean_rot,
+            std_rotation=float(std_rot),
+            mean_rotation_error=float(mean_rot),
             max_translation_error=max_trans,
             max_rotation_error=max_rot,
             snr_translation=snr_trans,
@@ -1312,7 +1312,7 @@ class JawMotionPrecisionAnalyzer:
             power_spectrum_rot=psd_rot
         )
 
-        logger.info(f"Precision Analysis Results:")
+        logger.info("Precision Analysis Results:")
         logger.info(f"  Translation RMS (magnitude): {rms_trans:.3f} mm")
         logger.info(f"  Translation RMS per axis: X={rms_trans_per_axis[0]:.3f}, "
                     f"Y={rms_trans_per_axis[1]:.3f}, Z={rms_trans_per_axis[2]:.3f} mm")
@@ -1362,7 +1362,7 @@ class JawMotionPrecisionAnalyzer:
         # Create figure with subplots
         fig = plt.figure(figsize=(16, 12))
         if window_title is not None:
-            fig.canvas.manager.set_window_title(window_title)
+            fig.canvas.manager.set_window_title(window_title)  # type: ignore
         gs = fig.add_gridspec(4, 3, hspace=0.3, wspace=0.3)
 
         # 1. Raw vs Filtered Trajectories (Translation)
@@ -1659,10 +1659,10 @@ def analyze_multiple_trials(hdf5_files: List[Union[str, Path]],
         logger.info("PRECISION ANALYSIS SUMMARY")
         logger.info("=" * 60)
         logger.info(f"Analyzed {len(df)} files with cutoff frequency {cutoff_frequency} Hz")
-        logger.info(f"\nTranslation Precision:")
+        logger.info("\nTranslation Precision:")
         logger.info(f"  Mean RMS: {df['Translation_RMS_mm'].mean():.3f} ± {df['Translation_RMS_mm'].std():.3f} mm")
         logger.info(f"  Range: {df['Translation_RMS_mm'].min():.3f} - {df['Translation_RMS_mm'].max():.3f} mm")
-        logger.info(f"\nRotation Precision:")
+        logger.info("\nRotation Precision:")
         logger.info(f"  Mean RMS: {df['Rotation_RMS_deg'].mean():.3f} ± {df['Rotation_RMS_deg'].std():.3f}°")
         logger.info(f"  Range: {df['Rotation_RMS_deg'].min():.3f} - {df['Rotation_RMS_deg'].max():.3f}°")
         logger.info("=" * 60)

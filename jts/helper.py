@@ -11,10 +11,10 @@ __author__ = "Paul-Otto Müller"
 __copyright__ = "Copyright 2025, Paul-Otto Müller"
 __credits__ = ["Paul-Otto Müller"]
 __license__ = "CC BY-NC-SA 4.0"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __maintainer__ = "Paul-Otto Müller"
 __status__ = "Development"
-__date__ = '30.05.2025'
+__date__ = '16.10.2025'
 __url__ = "https://github.com/paulotto/jaw_tracking_system"
 
 import h5py
@@ -25,9 +25,10 @@ import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 
-from typing import List, Dict, Tuple, Optional, Union, Any
+from typing import List, Dict, Tuple, Optional, Union
 
 from scipy.signal import savgol_filter
 from scipy.spatial.transform import Rotation as R
@@ -145,7 +146,7 @@ def enable_better_3d_rotation(ax):
             press['y'] = event.y
             press['elev'] = ax.elev
             press['azim'] = ax.azim
-            press['button'] = 1
+            press['button'] = 1  # type: ignore
 
     def on_release(event):
         press['button'] = None
@@ -410,7 +411,7 @@ def plot_trajectories(T_list: List[np.ndarray],
                       colors: Optional[List[str]] = None,
                       line_styles: Optional[List[str]] = None,
                       grid_enabled: bool = True,
-                      grid_alpha: float = 0.3) -> Tuple[plt.Figure, plt.Axes]:
+                      grid_alpha: float = 0.3) -> Tuple[Figure, Axes]:
     """
     Plot transformation trajectories and return the matplotlib Figure object.
 
@@ -444,7 +445,7 @@ def plot_trajectories(T_list: List[np.ndarray],
     if line_styles is None:
         line_styles = ['-', '--', '-.', ':']
     if colors is None:
-        colors = plt.cm.tab10(np.linspace(0, 1, len(T_list)))
+        colors = plt.cm.tab10(np.linspace(0, 1, len(T_list)))  # type: ignore
     elif isinstance(colors, list) and all(isinstance(c, str) for c in colors):
         # If colors are provided as strings, use them cyclically
         colors = [colors[i % len(colors)] for i in range(len(T_list))]
@@ -469,9 +470,9 @@ def plot_trajectories(T_list: List[np.ndarray],
                                         sample_rate, linewidth, line_styles, colors,
                                         title_fontsize, view_3d)
 
-        ax.set_xlabel(ax.get_xlabel(), labelpad=labelpad_scale * axes_label_fontsize)
-        ax.set_ylabel(ax.get_ylabel(), labelpad=labelpad_scale * axes_label_fontsize)
-        ax.set_zlabel(ax.get_zlabel(), labelpad=labelpad_scale * axes_label_fontsize)
+        ax.set_xlabel(ax.get_xlabel(), labelpad=labelpad_scale * axes_label_fontsize)  # type: ignore
+        ax.set_ylabel(ax.get_ylabel(), labelpad=labelpad_scale * axes_label_fontsize)  # type: ignore
+        ax.set_zlabel(ax.get_zlabel(), labelpad=labelpad_scale * axes_label_fontsize)  # type: ignore
 
         if not grid_enabled:
             ax.grid(False)
@@ -480,12 +481,12 @@ def plot_trajectories(T_list: List[np.ndarray],
                                         sample_rate, linewidth, line_styles, colors,
                                         title_fontsize)
 
-        for axis in ax.flat:
-            axis.set_xlabel(axis.get_xlabel(), labelpad=labelpad_scale * axes_label_fontsize * 0.7)
-            axis.set_ylabel(axis.get_ylabel(), labelpad=labelpad_scale * axes_label_fontsize * 0.7)
+        for axis in ax.flat:  # type: ignore
+            axis.set_xlabel(axis.get_xlabel(), labelpad=labelpad_scale * axes_label_fontsize * 0.7)  # type: ignore
+            axis.set_ylabel(axis.get_ylabel(), labelpad=labelpad_scale * axes_label_fontsize * 0.7)  # type: ignore
 
     fig.tight_layout()
-
+    
     if save_path:
         fig.savefig(save_path, dpi=600, bbox_inches='tight')
         logger.info(f"Saved plot to: {save_path}")
@@ -495,7 +496,7 @@ def plot_trajectories(T_list: List[np.ndarray],
 
 def _plot_3d_trajectories(T_list, title, labels, plot_rot,
                           sample_rate, linewidth, line_styles, colors,
-                          title_fontsize=None, view_3d=None) -> Tuple[plt.Figure, plt.Axes]:
+                          title_fontsize=None, view_3d=None) -> Tuple[Figure, Axes]:
     """
     Helper for 3D trajectory plotting.
 
@@ -521,7 +522,7 @@ def _plot_3d_trajectories(T_list, title, labels, plot_rot,
     if view_3d is None:
         view_3d = {}
 
-    ax.view_init(
+    ax.view_init(  # type: ignore
         elev=view_3d.get('elev', 30),
         azim=view_3d.get('azim', 0),
         roll=view_3d.get('roll', 0),
@@ -563,7 +564,7 @@ def _plot_3d_trajectories(T_list, title, labels, plot_rot,
 
     ax.set_xlabel('X [mm]')
     ax.set_ylabel('Y [mm]')
-    ax.set_zlabel('Z [mm]')
+    ax.set_zlabel('Z [mm]')  # type: ignore
     ax.set_title(title, fontsize=title_fontsize)
     ax.legend()
 
@@ -574,7 +575,7 @@ def _plot_3d_trajectories(T_list, title, labels, plot_rot,
 
 def _plot_2d_trajectories(T_list, title, labels, plot_rot,
                           sample_rate, linewidth, line_styles, colors,
-                          title_fontsize=None) -> Tuple[plt.Figure, plt.Axes]:
+                          title_fontsize=None) -> Tuple[Figure, Axes]:
     """
     Helper for 2D component plotting.
 

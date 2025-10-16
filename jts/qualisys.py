@@ -11,10 +11,10 @@ __author__ = "Paul-Otto Müller"
 __copyright__ = "Copyright 2025, Paul-Otto Müller"
 __credits__ = ["Paul-Otto Müller"]
 __license__ = "CC BY-NC-SA 4.0"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __maintainer__ = "Paul-Otto Müller"
 __status__ = "Development"
-__date__ = '30.05.2025'
+__date__ = '16.10.2025'
 __url__ = "https://github.com/paulotto/jaw_tracking_system"
 
 import h5py
@@ -110,15 +110,15 @@ class QualysisData:
         main_data = self.data[main_key]
 
         # Extract basic properties
-        self.orig_filename = main_data['File']
-        self.timestamp = main_data['Timestamp']
-        self.start_frame = int(main_data['StartFrame'])
-        self.frames = int(main_data['Frames'])
-        self.frame_rate = float(main_data['FrameRate'])
-        self.trajectories = main_data['Trajectories']
+        self.orig_filename = main_data['File']  # type: ignore
+        self.timestamp = main_data['Timestamp']  # type: ignore
+        self.start_frame = int(main_data['StartFrame'])  # type: ignore
+        self.frames = int(main_data['Frames'])  # type: ignore
+        self.frame_rate = float(main_data['FrameRate'])  # type: ignore
+        self.trajectories = main_data['Trajectories']  # type: ignore
 
         # Parse rigid bodies
-        self.rigid_bodies = self._parse_rigid_bodies(main_data['RigidBodies'][0, 0])
+        self.rigid_bodies = self._parse_rigid_bodies(main_data['RigidBodies'][0, 0])  # type: ignore
 
         logger.info(f"Loaded {len(self.rigid_bodies)} rigid bodies, "
                     f"{self.frames} frames at {self.frame_rate} Hz")
@@ -246,10 +246,10 @@ class QualysisData:
                                      check_nan: bool) -> np.ndarray:
         """Compute relative transforms between two rigid bodies."""
         # Extract data for frame interval
-        pos1 = rb1.positions[start_frame:end_frame + 1]
-        rot1 = rb1.rotations[start_frame:end_frame + 1]
-        pos2 = rb2.positions[start_frame:end_frame + 1]
-        rot2 = rb2.rotations[start_frame:end_frame + 1]
+        pos1 = rb1.positions[start_frame:end_frame + 1]  # type: ignore
+        rot1 = rb1.rotations[start_frame:end_frame + 1]  # type: ignore
+        pos2 = rb2.positions[start_frame:end_frame + 1]  # type: ignore
+        rot2 = rb2.rotations[start_frame:end_frame + 1]  # type: ignore
 
         # Check for NaN values if requested
         if check_nan:
@@ -320,7 +320,6 @@ class QualysisDataPlotUtils:
             frame_interval: Optional (start, end) frames to visualize
         """
         rigid_bodies = self.data.rigid_bodies
-        num_bodies = len(rigid_bodies)
 
         # Determine frame range
         start_frame, end_frame = frame_interval if frame_interval else (0, None)
@@ -345,14 +344,14 @@ class QualysisDataPlotUtils:
                 projection='3d'
             )
 
-            positions = body.positions[start_frame:end_frame]
+            positions = body.positions[start_frame:end_frame]  # type: ignore
             ax.plot(positions[:, 0], positions[:, 1], positions[:, 2],
                     label=name, linewidth=2)
 
             ax.set_title(f'{name} Trajectory')
             ax.set_xlabel('X [mm]')
             ax.set_ylabel('Y [mm]')
-            ax.set_zlabel('Z [mm]')
+            ax.set_zlabel('Z [mm]')  # type: ignore
             ax.legend()
 
     @staticmethod
@@ -366,7 +365,7 @@ class QualysisDataPlotUtils:
             axes = [axes]
 
         for i, (name, body) in enumerate(rigid_bodies.items()):
-            positions = body.positions[start_frame:end_frame]
+            positions = body.positions[start_frame:end_frame]  # type: ignore
             frames = np.arange(len(positions))
 
             # Plot each component
@@ -393,8 +392,8 @@ def T_from_rigid_body(rigid_body: RigidBody,
     """
     start, end = frame_interval if frame_interval else (0, None)
 
-    positions = rigid_body.positions[start:end]
-    rotations = rigid_body.rotations[start:end]
+    positions = rigid_body.positions[start:end]  # type: ignore
+    rotations = rigid_body.rotations[start:end]  # type: ignore
 
     num_frames = len(positions)
     transformations = np.zeros((num_frames, 4, 4))

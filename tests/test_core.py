@@ -13,10 +13,10 @@ __author__ = "Paul-Otto Müller"
 __copyright__ = "Copyright 2025, Paul-Otto Müller"
 __credits__ = ["Paul-Otto Müller"]
 __license__ = "GNU GPLv3"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __maintainer__ = "Paul-Otto Müller"
 __status__ = "Development"
-__date__ = '30.05.2025'
+__date__ = '16.10.2025'
 __url__ = "https://github.com/paulotto/jaw_tracking_system"
 
 import numpy as np
@@ -138,7 +138,7 @@ def test_jawmotionanalysis_init_and_methods(monkeypatch):
     # Patch JawMotionAnalysis to use DummyMotionData
     monkeypatch.setattr(core.JawMotionAnalysis, "_create_motion_data_handler", lambda self: DummyMotionData())
     analysis = core.JawMotionAnalysis(config)
-    analysis.motion_data = DummyMotionData()
+    analysis.motion_data = DummyMotionData()  # type: ignore
 
     # Mock calibration points, transforms, and trajectories
     analysis.calibration_points = {"test": np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]])}
@@ -185,7 +185,7 @@ def test_config_unit_and_scale_factor(monkeypatch):
 
     monkeypatch.setattr(core.JawMotionAnalysis, "_create_motion_data_handler", lambda self: DummyMotionData())
     analysis = core.JawMotionAnalysis(config)
-    analysis.motion_data = DummyMotionData()
+    analysis.motion_data = DummyMotionData()  # type: ignore
     analysis.calibration_points = {"test": np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]])}
     analysis.calibration_transforms = {"T_B_landmark": np.eye(4)}
     analysis.trajectories["T_max_marker_mand_marker_t"] = np.tile(np.eye(4), (2, 1, 1))

@@ -11,10 +11,10 @@ __author__ = "Paul-Otto Müller"
 __copyright__ = "Copyright 2025, Paul-Otto Müller"
 __credits__ = ["Paul-Otto Müller"]
 __license__ = "CC BY-NC-SA 4.0"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __maintainer__ = "Paul-Otto Müller"
 __status__ = "Development"
-__date__ = '03.06.2025'
+__date__ = '16.10.2025'
 __url__ = "https://github.com/paulotto/jaw_tracking_system"
 
 import asyncio
@@ -126,6 +126,8 @@ class QualysisStreamingDataSource(stm.StreamingDataSource):
 
         # Disconnect from QTM
         if self.connection:
+            if self.event_loop is None:
+                raise RuntimeError("Event loop not initialized")
             future = asyncio.run_coroutine_threadsafe(
                 self._async_disconnect(),
                 self.event_loop
@@ -154,8 +156,9 @@ class QualysisStreamingDataSource(stm.StreamingDataSource):
             return None
 
         try:
-            # Get packet from async queue (with timeout to allow stop checks)
-            packet = self._packet_queue.get(timeout=0.1)
+            # Get packet from async queue (non-blocking)
+            # Note: asyncio.Queue doesn't support timeout parameter in get()
+            packet = self._packet_queue.get_nowait()
 
             # Convert QTM packet to StreamingFrame
             return self._convert_packet_to_frame(packet)
@@ -176,6 +179,8 @@ class QualysisStreamingDataSource(stm.StreamingDataSource):
 
         # Start QTM streaming
         try:
+            if self.event_loop is None:
+                raise RuntimeError("Event loop not initialized")
             future = asyncio.run_coroutine_threadsafe(
                 self._async_start_streaming(),
                 self.event_loop
@@ -199,6 +204,8 @@ class QualysisStreamingDataSource(stm.StreamingDataSource):
         """Stop streaming data from QTM."""
         # Stop QTM streaming
         if self.connection:
+            if self.event_loop is None:
+                raise RuntimeError("Event loop not initialized")
             future = asyncio.run_coroutine_threadsafe(
                 self.connection.stream_frames_stop(),
                 self.event_loop
@@ -240,6 +247,9 @@ class QualysisStreamingDataSource(stm.StreamingDataSource):
         # Create queue for passing packets between async and sync contexts
         self._packet_queue = asyncio.Queue()
 
+        if self.connection is None:
+            raise RuntimeError("Connection not established")
+
         # Start streaming with callback
         result = await self.connection.stream_frames(
             frames=self.stream_rate,
@@ -251,6 +261,8 @@ class QualysisStreamingDataSource(stm.StreamingDataSource):
 
     def _run_event_loop(self) -> None:
         """Run the asyncio event loop in a separate thread."""
+        if self.event_loop is None:
+            raise RuntimeError("Event loop not initialized")
         asyncio.set_event_loop(self.event_loop)
         self.event_loop.run_forever()
 
@@ -263,6 +275,8 @@ class QualysisStreamingDataSource(stm.StreamingDataSource):
         """
         # Put packet in queue for sync processing
         try:
+            if self.event_loop is None:
+                raise RuntimeError("Event loop not initialized")
             self.event_loop.call_soon_threadsafe(
                 self._packet_queue.put_nowait, packet
             )
@@ -310,21 +324,25 @@ class QualysisStreamingDataSource(stm.StreamingDataSource):
 
         # Extract 3D markers if available
         if qtm_rt.packet.QRTComponentType.Component3d in packet.components:
-            header, markers = packet.get_3d_markers()
-            for i, marker in enumerate(markers):
-                if marker is not None:  # Check for occluded markers
-                    marker_name = f"marker_{i}"
-                    frame.markers[marker_name] = np.array([marker.x, marker.y, marker.z])
+            marker_data = packet.get_3d_markers()
+            if marker_data is not None:
+                header, markers = marker_data
+                for i, marker in enumerate(markers):
+                    if marker is not None:  # Check for occluded markers
+                        marker_name = f"marker_{i}"
+                        frame.markers[marker_name] = np.array([marker.x, marker.y, marker.z])
 
         # Extract 6DOF rigid bodies
         if qtm_rt.packet.QRTComponentType.Component6d in packet.components:
-            header, bodies = packet.get_6d()
-            for i, body in enumerate(bodies):
-                if body[0] is not None:  # Check if body is tracked
-                    rb_name = self._get_rigid_body_name(i)
-                    frame.rigid_bodies[rb_name] = self._convert_6dof_to_rigid_body(
-                        rb_name, body
-                    )
+            body_data = packet.get_6d()
+            if body_data is not None:
+                header, bodies = body_data
+                for i, body in enumerate(bodies):
+                    if body[0] is not None:  # Check if body is tracked
+                        rb_name = self._get_rigid_body_name(i)
+                        frame.rigid_bodies[rb_name] = self._convert_6dof_to_rigid_body(
+                            rb_name, body
+                        )
 
         # Calculate latency if possible
         frame.latency = (datetime.now() - frame.system_time).total_seconds()

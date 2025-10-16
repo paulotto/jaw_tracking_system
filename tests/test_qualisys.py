@@ -13,10 +13,10 @@ __author__ = "Paul-Otto Müller"
 __copyright__ = "Copyright 2025, Paul-Otto Müller"
 __credits__ = ["Paul-Otto Müller"]
 __license__ = "GNU GPLv3"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __maintainer__ = "Paul-Otto Müller"
 __status__ = "Development"
-__date__ = '30.05.2025'
+__date__ = '16.10.2025'
 __url__ = "https://github.com/paulotto/jaw_tracking_system"
 
 import pytest
@@ -36,8 +36,8 @@ def test_rigidbody_init_and_validation():
     rot = np.tile(np.eye(3), (10, 1, 1))
     rb = qtm.RigidBody(name="TestBody", positions=pos, rotations=rot)
     assert rb.name == "TestBody"
-    assert rb.positions.shape == (10, 3)
-    assert rb.rotations.shape == (10, 3, 3)
+    assert rb.positions.shape == (10, 3)  # type: ignore
+    assert rb.rotations.shape == (10, 3, 3)  # type: ignore
 
     # Mismatched lengths should raise ValueError
     with pytest.raises(ValueError):
