@@ -17,6 +17,7 @@ The models for the hardware components are provided as STL files and inside a Fr
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [Setup and Usage](#setup-and-usage)
+- [Examples](#examples)
 - [Extending the Framework](#extending-the-framework)
 - [Directory Structure](#directory-structure)
 - [Testing](#testing)
@@ -155,12 +156,61 @@ jaw_tracking_system/
 │   ├── test_helper.py
 │   ├── test_precision_analysis.py
 │   └── test_qualisys.py
+├── CHANGELOG.md
 ├── LICENSE
 ├── MANIFEST.in
 ├── README.md
 ├── requirements.txt
 ├── setup.py
 ```
+
+## Examples
+
+The `examples/` directory contains example scripts demonstrating various features:
+
+### HDF5 Analysis Example
+
+Comprehensive example for working with saved HDF5 trajectory files:
+
+```bash
+python examples/hdf5_analysis_example.py output/jaw_motion.h5
+```
+
+This script demonstrates:
+- Inspecting HDF5 file structure and metadata
+- Loading transformation data programmatically
+- Creating 3D trajectory visualizations
+- Comparing raw vs smoothed trajectories
+
+For more details, see the [HDF5 Analysis Documentation](docs/HDF5_ANALYSIS.md) and [Quick Start Guide](docs/HDF5_QUICKSTART.md).
+
+### Working with HDF5 Files Programmatically
+
+```python
+import jts.helper as hlp
+import matplotlib.pyplot as plt
+
+# Inspect HDF5 file
+info = hlp.inspect_hdf5('jaw_motion.h5', verbose=True)
+
+# Load transformation data
+data = hlp.load_hdf5_transformations('jaw_motion.h5')
+transforms = data['T_model_origin_mand_landmark_t']['transformations']
+
+# Visualize trajectory in 3D
+hlp.visualize_hdf5_trajectory('jaw_motion.h5', frame_step=50)
+
+# Compare raw vs smoothed trajectories
+hlp.compare_hdf5_trajectories('jaw_motion.h5', component='translations')
+
+plt.show()
+```
+
+Available HDF5 functions:
+- `inspect_hdf5()` - Inspect file structure without loading all data
+- `load_hdf5_transformations()` - Load trajectory data into memory
+- `visualize_hdf5_trajectory()` - Create 3D visualizations
+- `compare_hdf5_trajectories()` - Compare multiple trajectories
 
 ## Testing
 
