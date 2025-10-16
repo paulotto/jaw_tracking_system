@@ -37,21 +37,25 @@ from scipy.spatial.transform import Rotation as R
 USE_TEX_FONT = False  # Set to True to enable PGF/LaTeX output globally
 
 if USE_TEX_FONT:
-    import matplotlib
+    try:
+        import matplotlib
 
-    matplotlib.rcParams.update({
-        "pgf.texsystem": "pdflatex",
-        "text.usetex": True,
-        "font.family": "serif",
-        "font.size": 10,  # Match your document's font size
-        "axes.labelsize": 10,
-        "legend.fontsize": 8,
-        "font.serif": ["Times New Roman", "Times", "DejaVu Serif", "serif"],
-        "font.sans-serif": [],
-        "pgf.rcfonts": False,
-        "pgf.preamble": r"\usepackage{mathptmx}\usepackage[utf8x]{inputenc}\usepackage[T1]{fontenc}",
-    })
-    # plt.switch_backend("pgf")
+        matplotlib.rcParams.update({
+            "pgf.texsystem": "pdflatex",
+            "text.usetex": True,
+            "font.family": "serif",
+            "font.size": 10,  # Match your document's font size
+            "axes.labelsize": 10,
+            "legend.fontsize": 8,
+            "font.serif": ["Times New Roman", "Times", "DejaVu Serif", "serif"],
+            "font.sans-serif": [],
+            "pgf.rcfonts": False,
+            "pgf.preamble": r"\usepackage{mathptmx}\usepackage[utf8x]{inputenc}\usepackage[T1]{fontenc}",
+        })
+        # plt.switch_backend("pgf")
+    except Exception:
+        # LaTeX not available, silently fall back to default matplotlib fonts
+        USE_TEX_FONT = False
 
 
 # Custom logger with colors

@@ -1564,6 +1564,8 @@ def main():
     parser.add_argument('config', help='Path to JSON configuration file')
     parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose output')
     parser.add_argument('--plot', '-p', action='store_true', help='Show plots during analysis')
+    parser.add_argument('--latex', action='store_true', 
+                        help='Enable LaTeX font rendering for plots (requires LaTeX installation)')
 
     args = parser.parse_args()
 
@@ -1581,24 +1583,38 @@ def main():
                 config['visualization'] = {}
             config['visualization']['show_plots'] = True
 
-        # Set PGF/LaTeX plotting option globally in helper.py if requested in config
-        if config.get('visualization', {}).get('use_tex_font', False):
-            hlp.USE_TEX_FONT = True
-            # Re-apply matplotlib PGF/LaTeX settings if needed
-            import matplotlib
-            matplotlib.rcParams.update({
-                "pgf.texsystem": "pdflatex",
-                "text.usetex": True,
-                "font.family": "serif",
-                "font.size": 10,  # Match your document's font size
-                "axes.labelsize": 10,
-                "legend.fontsize": 8,
-                "font.serif": ["Times New Roman", "Times", "DejaVu Serif", "serif"],
-                "font.sans-serif": [],
-                "pgf.rcfonts": False,
-                "pgf.preamble": r"\usepackage{mathptmx}\usepackage[utf8x]{inputenc}\usepackage[T1]{fontenc}",
-            })
-            # plt.switch_backend("pgf")
+        # Handle LaTeX command-line argument
+        # Only enable LaTeX if explicitly requested via --latex flag
+        use_latex = args.latex
+        
+        if use_latex:
+            logger.info("LaTeX rendering enabled via command-line argument")
+
+        # Set PGF/LaTeX plotting option globally in helper.py if requested
+        if use_latex:
+            try:
+                hlp.USE_TEX_FONT = True
+                # Re-apply matplotlib PGF/LaTeX settings if needed
+                import matplotlib
+                matplotlib.rcParams.update({
+                    "pgf.texsystem": "pdflatex",
+                    "text.usetex": True,
+                    "font.family": "serif",
+                    "font.size": 10,  # Match your document's font size
+                    "axes.labelsize": 10,
+                    "legend.fontsize": 8,
+                    "font.serif": ["Times New Roman", "Times", "DejaVu Serif", "serif"],
+                    "font.sans-serif": [],
+                    "pgf.rcfonts": False,
+                    "pgf.preamble": r"\usepackage{mathptmx}\usepackage[utf8x]{inputenc}\usepackage[T1]{fontenc}",
+                })
+                # plt.switch_backend("pgf")
+                logger.info("✓ LaTeX rendering enabled for plots")
+            except Exception as e:
+                logger.warning(f"⚠ LaTeX rendering requested but not available: {e}")
+                logger.warning("  Falling back to standard matplotlib fonts")
+                logger.warning("  To enable LaTeX: install a LaTeX distribution (e.g., TeX Live, MiKTeX)")
+                hlp.USE_TEX_FONT = False
 
         # Create and run analysis
         analysis = JawMotionAnalysis(config)
