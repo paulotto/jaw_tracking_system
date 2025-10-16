@@ -114,6 +114,28 @@ rotations = raw_data['rotations']         # (N, 3, 3) matrices
 position_100 = transforms[100, :3, 3]
 print(f"Position at frame 100: {position_100} {raw_data['unit']}")
 
+# Access translational derivatives
+if 'translational_velocity' in raw_data['derivatives']:
+    trans_vel = raw_data['derivatives']['translational_velocity']
+    vel_magnitude = np.linalg.norm(trans_vel, axis=1)
+    print(f"Max translational velocity: {vel_magnitude.max():.3f} {raw_data['unit']}/s")
+
+if 'translational_acceleration' in raw_data['derivatives']:
+    trans_acc = raw_data['derivatives']['translational_acceleration']
+    acc_magnitude = np.linalg.norm(trans_acc, axis=1)
+    print(f"Max translational acceleration: {acc_magnitude.max():.3f} {raw_data['unit']}/s²")
+
+# Access rotational derivatives
+if 'angular_velocity' in raw_data['derivatives']:
+    ang_vel = raw_data['derivatives']['angular_velocity']
+    ang_vel_mag = np.linalg.norm(ang_vel, axis=1)
+    print(f"Max angular velocity: {ang_vel_mag.max():.3f} rad/s")
+
+if 'angular_acceleration' in raw_data['derivatives']:
+    ang_acc = raw_data['derivatives']['angular_acceleration']
+    ang_acc_mag = np.linalg.norm(ang_acc, axis=1)
+    print(f"Max angular acceleration: {ang_acc_mag.max():.3f} rad/s²")
+
 # Load only quaternions (don't convert to matrices)
 data_quat = hlp.load_hdf5_transformations('jaw_motion.h5', as_matrices=False)
 quaternions = data_quat['T_model_origin_mand_landmark_t']['rotations']  # (N, 4)
@@ -197,6 +219,10 @@ def compare_hdf5_trajectories(filename: Union[str, Path],
   - `'translations'` - X, Y, Z translations over time
   - `'rotations_euler'` - Roll, Pitch, Yaw (Euler angles) over time
   - `'rotations_rotvec'` - Rotation vector components over time
+  - `'translational_velocity'` - Linear velocity (1st derivative)
+  - `'translational_acceleration'` - Linear acceleration (2nd derivative)
+  - `'angular_velocity'` - Angular velocity (1st rotational derivative)
+  - `'angular_acceleration'` - Angular acceleration (2nd rotational derivative)
 - `save_path`: Optional path to save the figure
 
 **Returns:**
@@ -223,6 +249,20 @@ fig2, axes2 = hlp.compare_hdf5_trajectories(
     'jaw_motion.h5',
     component='rotations_euler',
     save_path='comparison_rotations.png'
+)
+
+# Compare translational velocities
+fig3, axes3 = hlp.compare_hdf5_trajectories(
+    'jaw_motion.h5',
+    component='translational_velocity',
+    save_path='comparison_velocity.png'
+)
+
+# Compare angular velocities
+fig4, axes4 = hlp.compare_hdf5_trajectories(
+    'jaw_motion.h5',
+    component='angular_velocity',
+    save_path='comparison_angular_velocity.png'
 )
 
 plt.show()
@@ -374,7 +414,33 @@ python examples/hdf5_analysis_example.py output/jaw_motion.h5
      - Trajectory extent >100mm: `frame_scale=10.0-20.0`
    - **Tip**: Use auto-scaling unless you have specific visualization requirements
 
-5. **Derivatives**: If derivatives are stored in the HDF5 file, they will be loaded automatically in the `derivatives` dictionary.
+5. **Derivatives**: If derivatives are stored in the HDF5 file, they will be loaded automatically in the `derivatives` dictionary with convenient aliases:
+   - **Translational derivatives:**
+     - `'translational_velocity'` - First derivative of translation (linear velocity)
+     - `'translational_acceleration'` - Second derivative of translation (linear acceleration)
+   - **Rotational derivatives:**
+     - `'angular_velocity'` (or `'rotational_velocity'`) - First derivative of rotation
+     - `'angular_acceleration'` (or `'rotational_acceleration'`) - Second derivative of rotation
+   - **Backward compatibility:** Generic aliases `'velocity'` and `'acceleration'` point to translational derivatives
+   - **Original keys:** All original dataset names are preserved (e.g., `'translational_derivative_order_1'`)
+   
+   Example:
+   ```python
+   data = hlp.load_hdf5_transformations('jaw_motion.h5')
+   group_data = data['T_model_origin_mand_landmark_t']
+   
+   # Translational derivatives
+   if 'translational_velocity' in group_data['derivatives']:
+       trans_vel = group_data['derivatives']['translational_velocity']
+       vel_mag = np.linalg.norm(trans_vel, axis=1)
+       print(f"Max translational velocity: {vel_mag.max():.3f} m/s")
+   
+   # Rotational derivatives
+   if 'angular_velocity' in group_data['derivatives']:
+       ang_vel = group_data['derivatives']['angular_velocity']
+       ang_vel_mag = np.linalg.norm(ang_vel, axis=1)
+       print(f"Max angular velocity: {ang_vel_mag.max():.3f} rad/s")
+   ```
 
 6. **Time Synchronization**: The sample rate is stored in the HDF5 file, allowing you to convert frame indices to timestamps:
    ```python

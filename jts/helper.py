@@ -1063,14 +1063,30 @@ def load_hdf5_transformations(filename: Union[str, Path],
                 'sample_rate': float - Sample rate in Hz
                 'unit': str - Unit of translations
                 'metadata': str - Metadata string
-                'derivatives': dict - Optional derivatives if stored
+                'derivatives': dict - Derivatives with convenient aliases:
+                    - Original keys (e.g., 'translational_derivative_order_1')
+                    - Translational: 'translational_velocity', 'translational_acceleration'
+                    - Rotational: 'angular_velocity', 'angular_acceleration'
+                    - Generic (for backward compatibility): 'velocity', 'acceleration'
             }
         }
 
     Example:
         >>> data = hlp.load_hdf5_transformations('jaw_motion.h5')
-        >>> transforms = data['T_model_origin_mand_landmark_t']['transformations']
-        >>> print(f"Loaded {len(transforms)} transformation matrices")
+        >>> group = data['T_model_origin_mand_landmark_t']
+        >>> 
+        >>> # Access transformations
+        >>> transforms = group['transformations']
+        >>> 
+        >>> # Access translational derivatives
+        >>> if 'translational_velocity' in group['derivatives']:
+        ...     trans_vel = group['derivatives']['translational_velocity']
+        ...     print(f"Max translational velocity: {np.linalg.norm(trans_vel, axis=1).max():.3f} m/s")
+        >>> 
+        >>> # Access rotational derivatives
+        >>> if 'angular_velocity' in group['derivatives']:
+        ...     ang_vel = group['derivatives']['angular_velocity']
+        ...     print(f"Max angular velocity: {np.linalg.norm(ang_vel, axis=1).max():.3f} rad/s")
     """
     filename = Path(filename)
     if not filename.exists():
@@ -1115,25 +1131,61 @@ def load_hdf5_transformations(filename: Union[str, Path],
                 raise ValueError(f"Group '{gname}' does not contain 'rotations' dataset")
 
             # Construct 4x4 transformation matrices
-            if as_matrices and data['rotations'].ndim == 3:  # type: ignore
-                N = len(data['translations'])  # type: ignore
-                data['transformations'] = np.zeros((N, 4, 4))
-                data['transformations'][:, :3, :3] = data['rotations']
-                data['transformations'][:, :3, 3] = data['translations']
-                data['transformations'][:, 3, 3] = 1.0
+            if as_matrices:
+                if data['rotations'].ndim == 3:  # type: ignore # Already matrices
+                    N = len(data['translations'])  # type: ignore
+                    data['transformations'] = np.zeros((N, 4, 4))
+                    data['transformations'][:, :3, :3] = data['rotations']
+                    data['transformations'][:, :3, 3] = data['translations']
+                    data['transformations'][:, 3, 3] = 1.0
+                else:  # Quaternions - convert to matrices
+                    N = len(data['translations'])  # type: ignore
+                    data['transformations'] = np.zeros((N, 4, 4))
+                    # Convert quaternions to matrices for transformations
+                    for i, q in enumerate(data['rotations']):  # type: ignore
+                        R_mat = R.from_quat(q[[1, 2, 3, 0]]).as_matrix()
+                        data['transformations'][i, :3, :3] = R_mat
+                    data['transformations'][:, :3, 3] = data['translations']
+                    data['transformations'][:, 3, 3] = 1.0
 
             # Load metadata and attributes
             data['sample_rate'] = group.attrs.get('sample_rate', None)
             data['unit'] = group.attrs.get('unit', 'mm')
             data['metadata'] = group.attrs.get('metadata', '')
 
-            # Load derivatives if available
+            # Load derivatives if available (organized by type for easier access)
             derivatives = {}
             for key in group.keys():  # type: ignore
-                if 'derivative' in key:
-                    derivatives[key] = group[key][:]  # type: ignore
+                if 'derivative' in key.lower():
+                    deriv_data = group[key][:]  # type: ignore
+                    # Provide both original key and simplified access
+                    derivatives[key] = deriv_data
+                    
+                    # Add convenient aliases based on type and order
+                    if 'translational' in key.lower():
+                        if 'order_1' in key.lower() or 'first' in key.lower():
+                            derivatives['translational_velocity'] = deriv_data
+                            # Also add generic 'velocity' for backward compatibility
+                            if 'velocity' not in derivatives:
+                                derivatives['velocity'] = deriv_data
+                        elif 'order_2' in key.lower() or 'second' in key.lower():
+                            derivatives['translational_acceleration'] = deriv_data
+                            # Also add generic 'acceleration' for backward compatibility
+                            if 'acceleration' not in derivatives:
+                                derivatives['acceleration'] = deriv_data
+                    elif 'rotational' in key.lower():
+                        if 'order_1' in key.lower() or 'first' in key.lower():
+                            derivatives['rotational_velocity'] = deriv_data
+                            derivatives['angular_velocity'] = deriv_data
+                        elif 'order_2' in key.lower() or 'second' in key.lower():
+                            derivatives['rotational_acceleration'] = deriv_data
+                            derivatives['angular_acceleration'] = deriv_data
+            
             if derivatives:
                 data['derivatives'] = derivatives
+            else:
+                # Provide empty dict for consistent interface
+                data['derivatives'] = {}
 
             results[gname] = data
 
@@ -1281,15 +1333,27 @@ def compare_hdf5_trajectories(filename: Union[str, Path],
     Args:
         filename: Path to HDF5 file
         group_names: List of groups to compare (None = all groups)
-        component: What to plot - 'translations', 'rotations_euler', or 'rotations_rotvec'
+        component: What to plot:
+            - 'translations' - X, Y, Z translations
+            - 'rotations_euler' - Roll, Pitch, Yaw
+            - 'rotations_rotvec' - Rotation vector components
+            - 'translational_velocity' - Linear velocity (1st derivative)
+            - 'translational_acceleration' - Linear acceleration (2nd derivative)
+            - 'angular_velocity' - Angular velocity (1st rotational derivative)
+            - 'angular_acceleration' - Angular acceleration (2nd rotational derivative)
         save_path: Optional path to save the figure
 
     Returns:
         Figure and Axes objects
 
     Example:
+        >>> # Compare trajectories
         >>> fig, ax = hlp.compare_hdf5_trajectories('jaw_motion.h5',
         ...     group_names=['T_model_origin_mand_landmark_t', 'T_model_origin_mand_landmark_t_smooth'])
+        >>> 
+        >>> # Compare translational velocities
+        >>> fig, ax = hlp.compare_hdf5_trajectories('jaw_motion.h5', 
+        ...     component='translational_velocity')
         >>> plt.show()
     """
     # Load data
@@ -1320,8 +1384,20 @@ def compare_hdf5_trajectories(filename: Union[str, Path],
         fig, axes = plt.subplots(3, 1, figsize=(12, 9), sharex=True)
         labels = ['ωX', 'ωY', 'ωZ']
         ylabel_base = 'Rotation Vector'
+    elif component in ['translational_velocity', 'translational_acceleration']:
+        fig, axes = plt.subplots(3, 1, figsize=(12, 9), sharex=True)
+        labels = ['X', 'Y', 'Z']
+        ylabel_base = 'Translational Velocity' if 'velocity' in component else 'Translational Acceleration'
+    elif component in ['angular_velocity', 'angular_acceleration']:
+        fig, axes = plt.subplots(3, 1, figsize=(12, 9), sharex=True)
+        labels = ['X', 'Y', 'Z']
+        ylabel_base = 'Angular Velocity' if 'velocity' in component else 'Angular Acceleration'
     else:
-        raise ValueError("component must be 'translations', 'rotations_euler', or 'rotations_rotvec'")
+        raise ValueError(
+            "component must be 'translations', 'rotations_euler', 'rotations_rotvec', "
+            "'translational_velocity', 'translational_acceleration', "
+            "'angular_velocity', or 'angular_acceleration'"
+        )
 
     # Get unit from first group
     unit = data[group_names[0]]['unit']
@@ -1345,13 +1421,35 @@ def compare_hdf5_trajectories(filename: Union[str, Path],
                 for rot in rotations
             ])
             unit_str = 'deg'
-        else:  # rotations_rotvec
+        elif component == 'rotations_rotvec':
             rotations = group_data['rotations']
             plot_data = np.array([
                 R.from_matrix(rot).as_rotvec(degrees=True)
                 for rot in rotations
             ])
             unit_str = 'deg'
+        elif component in ['translational_velocity', 'translational_acceleration', 
+                          'angular_velocity', 'angular_acceleration']:
+            # Get derivative data
+            if component not in group_data['derivatives']:
+                logger.warning(f"Derivative '{component}' not found in group '{gname}', skipping")
+                continue
+            
+            plot_data = group_data['derivatives'][component]
+            
+            # Determine units
+            if 'translational' in component:
+                if 'velocity' in component:
+                    unit_str = f'{unit}/s'
+                else:  # acceleration
+                    unit_str = f'{unit}/s²'
+            else:  # angular
+                if 'velocity' in component:
+                    unit_str = 'rad/s'
+                else:  # acceleration
+                    unit_str = 'rad/s²'
+        else:
+            raise ValueError(f"Unexpected component: {component}")
 
         # Time vector
         time = np.arange(len(plot_data)) / sample_rate

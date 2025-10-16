@@ -25,6 +25,7 @@ __url__ = "https://github.com/paulotto/jaw_tracking_system"
 
 import sys
 from pathlib import Path
+import numpy as np
 import matplotlib.pyplot as plt
 
 # Add parent directory to path if jts module is not installed
@@ -88,6 +89,55 @@ def main():
         print(f"    X: [{translations[:, 0].min():.2f}, {translations[:, 0].max():.2f}] {group_data['unit']}")
         print(f"    Y: [{translations[:, 1].min():.2f}, {translations[:, 1].max():.2f}] {group_data['unit']}")
         print(f"    Z: [{translations[:, 2].min():.2f}, {translations[:, 2].max():.2f}] {group_data['unit']}")
+        
+        # Check for derivatives
+        if 'derivatives' in group_data and group_data['derivatives']:
+            print("  Derivatives available:")
+            
+            # Translational derivatives
+            if 'translational_velocity' in group_data['derivatives']:
+                trans_vel = group_data['derivatives']['translational_velocity']
+                vel_magnitude = np.linalg.norm(trans_vel, axis=1)
+                print("    - Translational velocity (1st derivative):")
+                print(f"      Shape: {trans_vel.shape}")
+                print(f"      Magnitude range: [{vel_magnitude.min():.4f}, {vel_magnitude.max():.4f}] {group_data['unit']}/s")
+                print(f"      Mean magnitude: {vel_magnitude.mean():.4f} {group_data['unit']}/s")
+            
+            if 'translational_acceleration' in group_data['derivatives']:
+                trans_acc = group_data['derivatives']['translational_acceleration']
+                acc_magnitude = np.linalg.norm(trans_acc, axis=1)
+                print("    - Translational acceleration (2nd derivative):")
+                print(f"      Shape: {trans_acc.shape}")
+                print(f"      Magnitude range: [{acc_magnitude.min():.4f}, {acc_magnitude.max():.4f}] {group_data['unit']}/s²")
+                print(f"      Mean magnitude: {acc_magnitude.mean():.4f} {group_data['unit']}/s²")
+            
+            # Rotational derivatives
+            if 'angular_velocity' in group_data['derivatives']:
+                ang_vel = group_data['derivatives']['angular_velocity']
+                ang_vel_magnitude = np.linalg.norm(ang_vel, axis=1) if ang_vel.ndim > 1 else np.abs(ang_vel)
+                print("    - Angular velocity (1st rotational derivative):")
+                print(f"      Shape: {ang_vel.shape}")
+                print(f"      Magnitude range: [{ang_vel_magnitude.min():.4f}, {ang_vel_magnitude.max():.4f}] rad/s")
+                print(f"      Mean magnitude: {ang_vel_magnitude.mean():.4f} rad/s")
+            
+            if 'angular_acceleration' in group_data['derivatives']:
+                ang_acc = group_data['derivatives']['angular_acceleration']
+                ang_acc_magnitude = np.linalg.norm(ang_acc, axis=1) if ang_acc.ndim > 1 else np.abs(ang_acc)
+                print("    - Angular acceleration (2nd rotational derivative):")
+                print(f"      Shape: {ang_acc.shape}")
+                print(f"      Magnitude range: [{ang_acc_magnitude.min():.4f}, {ang_acc_magnitude.max():.4f}] rad/s²")
+                print(f"      Mean magnitude: {ang_acc_magnitude.mean():.4f} rad/s²")
+            
+            # Show any other derivatives
+            other_derivs = [k for k in group_data['derivatives'].keys() 
+                          if k not in ['translational_velocity', 'translational_acceleration',
+                                      'angular_velocity', 'angular_acceleration',
+                                      'velocity', 'acceleration',  # backward compat aliases
+                                      'rotational_velocity', 'rotational_acceleration']]  # other aliases
+            if other_derivs:
+                print(f"    - Other derivatives: {', '.join(other_derivs)}")
+        else:
+            print("  Derivatives: None")
     
     # ========================================================================
     # 3. VISUALIZE 3D TRAJECTORY
@@ -132,7 +182,26 @@ def main():
             component='rotations_euler'
         )
         
-        print("Created comparison plots for translations and rotations")
+        # Compare translational velocities (if derivatives available)
+        first_group_data = data[group_names[0]]
+        if 'derivatives' in first_group_data and 'translational_velocity' in first_group_data['derivatives']:
+            fig_vel, axes_vel = hlp.compare_hdf5_trajectories(
+                hdf5_file,
+                group_names=group_names,
+                component='translational_velocity'
+            )
+            print("Created comparison plots for translations, rotations, and translational velocity")
+            
+            # Compare angular velocities
+            if 'angular_velocity' in first_group_data['derivatives']:
+                fig_ang_vel, axes_ang_vel = hlp.compare_hdf5_trajectories(
+                    hdf5_file,
+                    group_names=group_names,
+                    component='angular_velocity'
+                )
+                print("Added comparison plot for angular velocity")
+        else:
+            print("Created comparison plots for translations and rotations")
     else:
         print("\n\nSTEP 4: Skipped (only one trajectory group found)")
     

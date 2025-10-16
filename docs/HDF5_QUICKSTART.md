@@ -39,6 +39,21 @@ data = hlp.load_hdf5_transformations('jaw_motion.h5')
 transforms = data['T_model_origin_mand_landmark_t']['transformations']  # (N, 4, 4)
 translations = data['T_model_origin_mand_landmark_t']['translations']   # (N, 3)
 sample_rate = data['T_model_origin_mand_landmark_t']['sample_rate']
+
+# Access derivatives (if available) with convenient aliases
+derivatives = data['T_model_origin_mand_landmark_t']['derivatives']
+
+# Translational derivatives
+if 'translational_velocity' in derivatives:
+    trans_vel = derivatives['translational_velocity']  # (N, 3)
+if 'translational_acceleration' in derivatives:
+    trans_acc = derivatives['translational_acceleration']  # (N, 3)
+
+# Rotational derivatives  
+if 'angular_velocity' in derivatives:
+    ang_vel = derivatives['angular_velocity']  # (N, 3) or (N, 4)
+if 'angular_acceleration' in derivatives:
+    ang_acc = derivatives['angular_acceleration']  # (N, 3) or (N, 4)
 ```
 
 ### 3. Visualize in 3D
