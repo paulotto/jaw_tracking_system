@@ -480,3 +480,345 @@ def test_compare_hdf5_trajectories_rotations_rotvec(tmp_path):
     assert fig is not None
     assert len(axes) == 3  # type: ignore
     plt.close(fig)
+
+
+def test_split_hdf5_single_interval(tmp_path):
+    """
+    Test split_hdf5_by_sub_experiments with single intervals:
+    - Verifies basic splitting functionality
+    - Checks that output files are created
+    - Validates frame counts match interval ranges
+    """
+    # Create test data with 200 frames
+    N = 200
+    T_t = np.tile(np.eye(4), (N, 1, 1))
+    T_t[:, :3, 3] = np.random.randn(N, 3)  # Random translations
+    
+    test_file = tmp_path / "test_full.h5"
+    hlp.store_transformations(
+        [T_t], [100.0], test_file,
+        group_names=['trajectory'],
+        derivative_order=2
+    )
+    
+    # Define sub-experiments with single intervals
+    sub_exps = {
+        'first_half': [0, 99],      # 100 frames
+        'second_half': [100, 199]   # 100 frames
+    }
+    
+    # Split the file
+    output_files = hlp.split_hdf5_by_sub_experiments(
+        test_file,
+        sub_experiments=sub_exps,  # type: ignore
+        output_dir=tmp_path / 'split'
+    )
+    
+    # Verify outputs
+    assert len(output_files) == 2
+    assert 'first_half' in output_files
+    assert 'second_half' in output_files
+    assert output_files['first_half'].exists()
+    assert output_files['second_half'].exists()
+    
+    # Load and verify frame counts
+    data_first = hlp.load_hdf5_transformations(output_files['first_half'])
+    data_second = hlp.load_hdf5_transformations(output_files['second_half'])
+    
+    assert len(data_first['trajectory']['transformations']) == 100
+    assert len(data_second['trajectory']['transformations']) == 100
+    
+    # Verify metadata
+    assert data_first['trajectory']['sample_rate'] == 100.0
+    
+    # Verify derivatives were recalculated
+    assert 'derivatives' in data_first['trajectory']
+    assert 'translational_velocity' in data_first['trajectory']['derivatives']
+    assert 'angular_velocity' in data_first['trajectory']['derivatives']
+
+
+def test_split_hdf5_multiple_intervals(tmp_path):
+    """
+    Test split_hdf5_by_sub_experiments with multiple concatenated intervals:
+    - Verifies interval concatenation works
+    - Checks that derivatives are recalculated
+    """
+    # Create test data
+    N = 300
+    T_t = np.tile(np.eye(4), (N, 1, 1))
+    T_t[:, :3, 3] = np.random.randn(N, 3)
+    
+    test_file = tmp_path / "test_multi.h5"
+    hlp.store_transformations(
+        [T_t], [200.0], test_file,
+        group_names=['trajectory'],
+        derivative_order=2
+    )
+    
+    # Define sub-experiment with multiple intervals
+    sub_exps = {
+        'combined': [[0, 49], [100, 149], [200, 249]]  # 3 x 50 frames = 150 total
+    }
+    
+    # Split the file
+    output_files = hlp.split_hdf5_by_sub_experiments(
+        test_file,
+        sub_experiments=sub_exps,  # type: ignore
+        output_dir=tmp_path / 'split'
+    )
+    
+    # Load and verify
+    data = hlp.load_hdf5_transformations(output_files['combined'])
+    assert len(data['trajectory']['transformations']) == 150
+    
+    # Verify derivatives exist (recalculated for concatenated intervals)
+    assert 'derivatives' in data['trajectory']
+    assert 'translational_velocity' in data['trajectory']['derivatives']
+    assert len(data['trajectory']['derivatives']['translational_velocity']) == 150
+
+
+def test_split_hdf5_from_config_file(tmp_path):
+    """
+    Test split_hdf5_by_sub_experiments loading from config file:
+    - Verifies config file loading works
+    - Tests error handling for missing config
+    """
+    import json
+    
+    # Create test data
+    N = 150
+    T_t = np.tile(np.eye(4), (N, 1, 1))
+    T_t[:, :3, 3] = np.random.randn(N, 3)
+    
+    test_file = tmp_path / "test_config.h5"
+    hlp.store_transformations(
+        [T_t], [100.0], test_file,
+        group_names=['trajectory']
+    )
+    
+    # Create config file
+    config = {
+        'analysis': {
+            'experiment': {
+                'sub_experiments': {
+                    'segment1': [0, 49],
+                    'segment2': [50, 99],
+                    'segment3': [100, 149]
+                }
+            }
+        }
+    }
+    
+    config_file = tmp_path / 'test_config.json'
+    with open(config_file, 'w') as f:
+        json.dump(config, f)
+    
+    # Split using config file
+    output_files = hlp.split_hdf5_by_sub_experiments(
+        test_file,
+        config_file=config_file,
+        output_dir=tmp_path / 'split'
+    )
+    
+    # Verify outputs
+    assert len(output_files) == 3
+    assert all(f.exists() for f in output_files.values())
+    
+    # Verify frame counts
+    data = hlp.load_hdf5_transformations(output_files['segment1'])
+    assert len(data['trajectory']['transformations']) == 50
+
+
+def test_split_hdf5_multiple_groups(tmp_path):
+    """
+    Test split_hdf5_by_sub_experiments with multiple trajectory groups:
+    - Verifies all groups are split correctly
+    - Tests copy_all_groups parameter
+    """
+    # Create test data with two groups
+    N = 100
+    T1 = np.tile(np.eye(4), (N, 1, 1))
+    T2 = np.tile(np.eye(4), (N, 1, 1))
+    T1[:, :3, 3] = np.random.randn(N, 3)
+    T2[:, :3, 3] = np.random.randn(N, 3)
+    
+    test_file = tmp_path / "test_groups.h5"
+    hlp.store_transformations(
+        [T1, T2], [100.0, 100.0], test_file,
+        group_names=['group1', 'group2']
+    )
+    
+    # Split both groups
+    sub_exps = {
+        'first': [0, 49],
+        'second': [50, 99]
+    }
+    
+    output_files = hlp.split_hdf5_by_sub_experiments(
+        test_file,
+        sub_experiments=sub_exps,  # type: ignore
+        output_dir=tmp_path / 'split',
+        copy_all_groups=True
+    )
+    
+    # Verify both groups are in each output file
+    data = hlp.load_hdf5_transformations(output_files['first'])
+    assert 'group1' in data
+    assert 'group2' in data
+    assert len(data['group1']['transformations']) == 50
+    assert len(data['group2']['transformations']) == 50
+
+
+def test_split_hdf5_error_handling(tmp_path):
+    """
+    Test split_hdf5_by_sub_experiments error handling:
+    - Missing file
+    - Missing sub_experiments and config_file
+    - Empty sub_experiments
+    - Invalid config file structure
+    """
+    import pytest
+    
+    # Test missing file
+    with pytest.raises(FileNotFoundError):
+        hlp.split_hdf5_by_sub_experiments(
+            tmp_path / "nonexistent.h5",
+            sub_experiments={'test': [0, 10]}
+        )
+    
+    # Create valid test file
+    N = 50
+    T_t = np.tile(np.eye(4), (N, 1, 1))
+    test_file = tmp_path / "test.h5"
+    hlp.store_transformations([T_t], [100.0], test_file, group_names=['traj'])
+    
+    # Test missing both sub_experiments and config_file
+    with pytest.raises(ValueError, match="Must provide either"):
+        hlp.split_hdf5_by_sub_experiments(test_file)
+    
+    # Test empty sub_experiments
+    with pytest.raises(ValueError, match="empty dictionary"):
+        hlp.split_hdf5_by_sub_experiments(
+            test_file,
+            sub_experiments={}
+        )
+    
+    # Test missing config file
+    with pytest.raises(FileNotFoundError):
+        hlp.split_hdf5_by_sub_experiments(
+            test_file,
+            config_file=tmp_path / "missing_config.json"
+        )
+    
+    # Test invalid config structure
+    import json
+    bad_config = tmp_path / 'bad_config.json'
+    with open(bad_config, 'w') as f:
+        json.dump({'wrong': 'structure'}, f)
+    
+    with pytest.raises(ValueError, match="missing required key"):
+        hlp.split_hdf5_by_sub_experiments(
+            test_file,
+            config_file=bad_config
+        )
+
+
+def test_split_hdf5_with_frame_offset(tmp_path):
+    """
+    Test frame_offset parameter for adjusting frame numbers.
+    
+    Simulates the case where HDF5 file frames start at 0, but
+    sub_experiments are defined in original frame numbers.
+    """
+    # Create test data (200 frames starting at 0)
+    N = 200
+    T_t = np.tile(np.eye(4), (N, 1, 1))
+    T_t[:, :3, 3] = np.random.randn(N, 3) * 10
+    
+    test_file = tmp_path / 'test.h5'
+    hlp.store_transformations(
+        [T_t], [200.0], test_file,
+        group_names=['test_group'],
+        derivative_order=2
+    )
+    
+    # Sub-experiments defined in "original" frame numbers (e.g., 1000-1199)
+    # But HDF5 file has frames [0-199]
+    # So we need frame_offset=1000
+    sub_exps = {
+        'first': [1000, 1099],    # Should map to [0, 99]
+        'second': [1100, 1199]    # Should map to [100, 199]
+    }
+    
+    # Test with explicit frame_offset
+    output_files = hlp.split_hdf5_by_sub_experiments(
+        test_file,
+        sub_experiments=sub_exps,  # type: ignore
+        frame_offset=1000,
+        output_dir=tmp_path / 'split'
+    )
+    
+    assert len(output_files) == 2
+    
+    # Verify first file has 100 frames
+    data_first = hlp.load_hdf5_transformations(output_files['first'])
+    assert len(data_first['test_group']['translations']) == 100
+    
+    # Verify second file has 100 frames
+    data_second = hlp.load_hdf5_transformations(output_files['second'])
+    assert len(data_second['test_group']['translations']) == 100
+
+
+def test_split_hdf5_auto_frame_offset_from_config(tmp_path):
+    """
+    Test automatic frame_offset detection from config file.
+    
+    When config_file is provided with frame_interval, the function should
+    automatically use frame_interval[0] as the frame_offset.
+    """
+    import json
+    
+    # Create test data
+    N = 200
+    T_t = np.tile(np.eye(4), (N, 1, 1))
+    T_t[:, :3, 3] = np.random.randn(N, 3) * 10
+    
+    test_file = tmp_path / 'test.h5'
+    hlp.store_transformations(
+        [T_t], [200.0], test_file,
+        group_names=['test_group'],
+        derivative_order=2
+    )
+    
+    # Create config with frame_interval and sub_experiments
+    config = {
+        'analysis': {
+            'experiment': {
+                'frame_interval': [15300, 15499],  # Original recording frames
+                'sub_experiments': {
+                    'first_half': [15300, 15399],   # Original frame numbers
+                    'second_half': [15400, 15499]   # Should auto-adjust by -15300
+                }
+            }
+        }
+    }
+    
+    config_file = tmp_path / 'config.json'
+    with open(config_file, 'w') as f:
+        json.dump(config, f)
+    
+    # Should automatically detect frame_offset=15300
+    output_files = hlp.split_hdf5_by_sub_experiments(
+        test_file,
+        config_file=config_file,
+        output_dir=tmp_path / 'split'
+    )
+    
+    assert len(output_files) == 2
+    
+    # Verify frame counts
+    data_first = hlp.load_hdf5_transformations(output_files['first_half'])
+    assert len(data_first['test_group']['translations']) == 100
+    
+    data_second = hlp.load_hdf5_transformations(output_files['second_half'])
+    assert len(data_second['test_group']['translations']) == 100

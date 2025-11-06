@@ -83,13 +83,60 @@ hlp.compare_hdf5_trajectories(
     component='rotations_euler',
     save_path='comparison_rot.png'
 )
+
+# Compare derivatives
+hlp.compare_hdf5_trajectories(
+    'jaw_motion.h5',
+    component='translational_velocity',
+    save_path='comparison_velocity.png'
+)
 plt.show()
 ```
 
-## Command-Line Tool
+### 5. Split by sub-experiments
+```python
+# Option 1: Direct definition (no frame offset needed)
+sub_exps = {
+    'first_half': [0, 100],
+    'second_half': [100, 200]
+}
+output_files = hlp.split_hdf5_by_sub_experiments(
+    'jaw_motion.h5',
+    sub_experiments=sub_exps,
+    output_dir='sub_experiments/'
+)
+
+# Option 2: With frame offset (when HDF5 frames don't match interval numbering)
+# Example: HDF5 has frames [0-11700] but sub-experiments use original [15300-27000]
+sub_exps = {
+    'open_close': [15300, 18400],
+    'chewing': [24400, 26051]
+}
+output_files = hlp.split_hdf5_by_sub_experiments(
+    'jaw_motion.h5',
+    sub_experiments=sub_exps,
+    frame_offset=15300,  # Automatically adjusts intervals
+    output_dir='sub_experiments/'
+)
+
+# Option 3: From config file (auto-detects frame_offset)
+# Config has: "frame_interval": [15300, 27000]
+# Automatically uses 15300 as offset for sub_experiments
+output_files = hlp.split_hdf5_by_sub_experiments(
+    'jaw_motion.h5',
+    config_file='config/config.json',  # Frame offset auto-detected!
+    output_dir='sub_experiments/'
+)
+```
+
+## Command-Line Tools
 
 ```bash
+# Analyze HDF5 file
 python examples/hdf5_analysis_example.py output/jaw_motion.h5
+
+# Split by sub-experiments
+python examples/split_hdf5_example.py jaw_motion.h5 config/config.json
 ```
 
 ## Full Documentation

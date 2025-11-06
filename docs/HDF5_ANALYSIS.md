@@ -10,6 +10,7 @@ The jaw tracking system saves trajectory data in HDF5 format for efficient stora
 2. **`load_hdf5_transformations()`** - Load transformation data into memory
 3. **`visualize_hdf5_trajectory()`** - Create 3D trajectory visualizations
 4. **`compare_hdf5_trajectories()`** - Compare multiple trajectories (raw vs smoothed)
+5. **`split_hdf5_by_sub_experiments()`** - Split files by frame intervals (sub-experiments)
 
 ## Functions
 
@@ -456,8 +457,151 @@ python examples/hdf5_analysis_example.py output/jaw_motion.h5
 
 ---
 
+### `split_hdf5_by_sub_experiments()`
+
+Efficiently split an HDF5 file into multiple files based on frame intervals (sub-experiments).
+
+**Signature:**
+```python
+def split_hdf5_by_sub_experiments(
+    filename: Union[str, Path],
+    sub_experiments: Optional[Dict[str, Union[List[int], List[List[int]]]]] = None,
+    config_file: Optional[Union[str, Path]] = None,
+    output_dir: Optional[Union[str, Path]] = None,
+    group_names: Optional[List[str]] = None,
+    copy_all_groups: bool = True,
+    sample_rate: Optional[float] = None,
+    frame_offset: Optional[int] = None
+) -> Dict[str, Path]
+```
+
+**Parameters:**
+- `filename`: Path to the source HDF5 file
+- `sub_experiments`: Dictionary mapping sub-experiment names to frame intervals:
+  - Single interval: `{'name': [start, end]}`
+  - Multiple intervals: `{'name': [[s1,e1], [s2,e2], ...]}`
+  - If None, must provide `config_file`
+- `config_file`: Path to config JSON file containing sub_experiments definition.
+  - Must have structure: `{'analysis': {'experiment': {'sub_experiments': {...}}}}`
+  - If provided, overrides `sub_experiments` parameter
+  - **Auto-detects `frame_offset`** from `analysis.experiment.frame_interval[0]`
+- `output_dir`: Output directory (default: same as source file)
+- `group_names`: List of groups to split (default: all groups)
+- `copy_all_groups`: If True, copies all groups; if False, only specified groups
+- `sample_rate`: Sample rate in Hz (default: read from file)
+- `frame_offset`: Offset to subtract from sub-experiment frame numbers.
+  - **Use case**: When HDF5 file frames start at 0, but sub-experiments are defined in original frame numbers
+  - **Example**: Original recording has frames [15300-27000], stored HDF5 has [0-11700]
+    - Set `frame_offset=15300` to automatically adjust sub-experiment intervals
+  - **Auto-detection**: If `config_file` is provided and contains `frame_interval`, automatically uses `frame_interval[0]`
+
+**Returns:**
+Dictionary mapping sub-experiment names to output file paths
+
+**Example 1: Direct sub-experiments (no frame offset needed)**
+```python
+import jts.helper as hlp
+
+# HDF5 frames and sub-experiments use same numbering
+sub_exps = {
+    'first_half': [0, 100],
+    'second_half': [100, 200]
+}
+
+output_files = hlp.split_hdf5_by_sub_experiments(
+    'jaw_motion.h5',
+    sub_experiments=sub_exps,
+    output_dir='sub_experiments/'
+)
+```
+
+**Example 2: With frame offset (manual)**
+```python
+import jts.helper as hlp
+
+# Original recording: frames [15300-27000]
+# HDF5 file contains: frames [0-11700] (renumbered)
+# Sub-experiments defined in original frame numbers
+
+sub_exps = {
+    'open_close': [15300, 18400],      # Original frame numbers
+    'chewing': [24400, 26051],
+}
+
+# Automatically adjusts intervals: [15300,18400] -> [0,3100]
+output_files = hlp.split_hdf5_by_sub_experiments(
+    'jaw_motion.h5',
+    sub_experiments=sub_exps,
+    frame_offset=15300,  # Subtract 15300 from all intervals
+    output_dir='sub_experiments/'
+)
+```
+
+**Example 3: Load from config file (auto frame offset)**
+```python
+import jts.helper as hlp
+
+# Config file contains:
+# "frame_interval": [15300, 27000]  <- Auto-detects offset=15300
+# "sub_experiments": {
+#     "open_close": [15300, 18400],   <- Automatically adjusted
+#     "chewing": [24400, 26051]
+# }
+
+output_files = hlp.split_hdf5_by_sub_experiments(
+    'jaw_motion.h5',
+    config_file='config/config_pm.json',  # Frame offset auto-detected!
+    output_dir='sub_experiments/'
+)
+
+# Output files created:
+# - sub_experiments/jaw_motion_open_close.h5 (3101 frames: [0-3100])
+# - sub_experiments/jaw_motion_chewing.h5 (1652 frames: [9100-10751])
+
+# Verify the split files
+for name, path in output_files.items():
+    info = hlp.inspect_hdf5(path, verbose=False)
+    print(f"{name}: {info[list(info.keys())[0]]['num_frames']} frames")
+```
+
+**Key Features:**
+- **Efficient**: Loads source file once, extracts multiple intervals
+- **Config file support**: Load sub-experiments directly from config JSON files
+- **Frame offset handling**: Automatically adjusts frame numbers when HDF5 frames don't match original numbering
+- **Auto-detection**: Automatically detects frame offset from config `frame_interval`
+- **Derivative recalculation**: Automatically recalculates derivatives for concatenated intervals
+- **Metadata preservation**: Copies sample rate, units, and adds split metadata
+- **Flexible intervals**: Supports both single intervals and multiple concatenated intervals
+
+**Sub-Experiments in Config:**
+Sub-experiments define frame intervals to extract from your recording. Useful for isolating specific motion types (e.g., chewing vs. opening/closing). When using the analysis pipeline with `use_sub_experiments: true`, only sub-experiments listed in `combine_sub_experiments` are concatenated into the final trajectory. Use `split_hdf5_by_sub_experiments()` to split an existing HDF5 file post-processing.
+
+Config structure:
+```json
+{
+  "analysis": {
+    "experiment": {
+      "frame_interval": [15300, 27000],
+      "use_sub_experiments": false,
+      "combine_sub_experiments": ["open_close", "chewing"],
+      "sub_experiments": {
+        "open_close": [15300, 18400],
+        "chewing": [24400, 26051],
+        "complex": [[27000, 27500], [28000, 28500]]
+      }
+````
+
+**Notes:**
+- Frame indices are **inclusive**: `[start, end]` includes both start and end frames
+- Multiple intervals are **concatenated** in the order specified
+- Derivatives are **recalculated** when intervals are concatenated to ensure continuity
+
+---
+
 ## See Also
 
 - `jts.plotly_visualization.JawMotionVisualizer`: For interactive Plotly-based visualizations
 - `jts.helper.store_transformations()`: For creating HDF5 files programmatically
-- Example script: `examples/hdf5_analysis_example.py`
+- Example scripts:
+  - `examples/hdf5_analysis_example.py`: HDF5 loading and visualization
+  - `examples/split_hdf5_example.py`: Splitting HDF5 files by sub-experiments
