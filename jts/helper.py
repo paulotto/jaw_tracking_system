@@ -19,6 +19,7 @@ __url__ = "https://github.com/paulotto/jaw_tracking_system"
 
 import h5py
 import csv
+import json
 import numpy as np
 import logging
 import sys
@@ -816,6 +817,7 @@ def store_transformations(
     scale_factor: float = 1.0,
     unit: str = "mm",
     group_names: Optional[List[str]] = None,
+    config: Optional[Dict] = None,
 ) -> None:
     """
     Store transformation matrices to HDF5 file.
@@ -830,6 +832,7 @@ def store_transformations(
         scale_factor: Scale factor for translations (e.g., 0.001 for mm to m)
         unit: Unit of translations (default: 'mm')
         group_names: Optional list of group names for each transformation set
+        config: Optional configuration dictionary to store as JSON at file and group level
     """
     filename = Path(filename)
     filename.parent.mkdir(parents=True, exist_ok=True)
@@ -842,6 +845,14 @@ def store_transformations(
         )
 
     with h5py.File(filename, "w") as f:
+        # Store file-level metadata
+        import datetime
+        f.attrs["creation_date"] = datetime.datetime.now().isoformat()
+        f.attrs["jts_version"] = __version__
+        if config is not None:
+            import json
+            f.attrs["config"] = json.dumps(config)
+        
         for i, (T_t, sample_rate) in enumerate(zip(T_t_list, sample_rates)):
             group_name = group_names[i] if group_names else f"T_{i}"
             _store_single_transformation(
@@ -854,6 +865,7 @@ def store_transformations(
                 store_as_quaternion,
                 derivative_order,
                 scale_factor,
+                config,
             )
 
     logger.info(f"Stored {len(T_t_list)} transformation sets to: {filename}")
@@ -869,6 +881,7 @@ def _store_single_transformation(
     store_as_quaternion: bool,
     derivative_order: int,
     scale_factor: float,
+    config: Optional[Dict] = None,
 ) -> None:
     """Store a single transformation array to HDF5 group."""
     if T_t.ndim != 3 or T_t.shape[1:] != (4, 4):
@@ -882,6 +895,11 @@ def _store_single_transformation(
         group.attrs["metadata"] = metadata
     group.attrs["sample_rate"] = float(sample_rate)
     group.attrs["unit"] = unit if unit else "mm"
+    
+    # Store config as separate attribute for easy parsing
+    if config is not None:
+        import json
+        group.attrs["config"] = json.dumps(config)
 
     # Extract and scale translations
     translations = T_t[:, :3, 3] * scale_factor
@@ -1068,6 +1086,15 @@ def inspect_hdf5(
             print(f"\n{'=' * 80}")
             print(f"HDF5 File: {filename}")
             print(f"{'=' * 80}\n")
+            
+            # Print file-level metadata
+            if "creation_date" in f.attrs:
+                print(f"Creation Date: {f.attrs['creation_date']}")
+            if "jts_version" in f.attrs:
+                print(f"JTS Version: {f.attrs['jts_version']}")
+            if "config" in f.attrs:
+                print("File-level Config: Available")
+            print()
 
         for group_name in f.keys():
             group = f[group_name]
@@ -1077,6 +1104,18 @@ def inspect_hdf5(
             group_info["metadata"] = group.attrs.get("metadata", "N/A")
             group_info["sample_rate"] = group.attrs.get("sample_rate", "N/A")
             group_info["unit"] = group.attrs.get("unit", "N/A")
+            
+            # Extract config if available
+            if "config" in group.attrs:
+                import json
+                try:
+                    config_str = group.attrs["config"]
+                    if isinstance(config_str, (str, bytes)):
+                        group_info["config"] = json.loads(config_str)  # type: ignore
+                    else:
+                        group_info["config"] = None
+                except (json.JSONDecodeError, TypeError):
+                    group_info["config"] = None
 
             # Get dataset information
             datasets = {}
@@ -1264,6 +1303,19 @@ def load_hdf5_transformations(
             data["sample_rate"] = group.attrs.get("sample_rate", None)
             data["unit"] = group.attrs.get("unit", "mm")
             data["metadata"] = group.attrs.get("metadata", "")
+            
+            # Load config if available
+            if "config" in group.attrs:
+                try:
+                    config_str = group.attrs["config"]
+                    if isinstance(config_str, (str, bytes)):
+                        data["config"] = json.loads(config_str)  # type: ignore
+                    else:
+                        data["config"] = None
+                except json.JSONDecodeError:
+                    data["config"] = None
+            else:
+                data["config"] = None
 
             # Load derivatives if available (organized by type for easier access)
             derivatives = {}
@@ -1843,6 +1895,21 @@ def split_hdf5_by_sub_experiments(
 
         # Create output HDF5 file
         with h5py.File(output_file, "w") as f_out:
+            # Copy file-level metadata from source if available
+            with h5py.File(filename, "r") as f_in:
+                if "creation_date" in f_in.attrs:
+                    f_out.attrs["original_creation_date"] = f_in.attrs["creation_date"]
+                if "jts_version" in f_in.attrs:
+                    f_out.attrs["jts_version"] = f_in.attrs["jts_version"]
+                if "config" in f_in.attrs:
+                    f_out.attrs["config"] = f_in.attrs["config"]
+            
+            # Add metadata specific to split file
+            import datetime
+            f_out.attrs["creation_date"] = datetime.datetime.now().isoformat()
+            f_out.attrs["split_from"] = str(filename.name)
+            f_out.attrs["sub_experiment"] = sub_name
+            
             # Process each group
             for group_name in (
                 list(full_data.keys()) if copy_all_groups else group_names
@@ -1910,6 +1977,10 @@ def split_hdf5_by_sub_experiments(
                 grp.attrs["sub_experiment"] = sub_name
                 grp.attrs["original_file"] = str(filename.name)
                 grp.attrs["intervals"] = str(intervals)
+                
+                # Copy config from source if available
+                if group_data.get("config") is not None:
+                    grp.attrs["config"] = json.dumps(group_data["config"])
 
                 # Recalculate and save derivatives if multiple intervals were concatenated
                 # (derivatives are discontinuous at interval boundaries)

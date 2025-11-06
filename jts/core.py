@@ -1330,7 +1330,8 @@ class JawMotionAnalysis:
                 derivative_order=self.config['output'].get('derivative_order', 2),
                 scale_factor=self.config['output'].get('scale_factor', 1.0),
                 unit=self.config['output'].get('unit', 'mm'),
-                group_names=group_names
+                group_names=group_names,
+                config=self.config
             )
             logger.info(f"✓ Saved {len(transforms)} trajectories to {filename}")
         else:

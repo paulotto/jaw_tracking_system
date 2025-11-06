@@ -822,3 +822,176 @@ def test_split_hdf5_auto_frame_offset_from_config(tmp_path):
     
     data_second = hlp.load_hdf5_transformations(output_files['second_half'])
     assert len(data_second['test_group']['translations']) == 100
+
+
+def test_store_config_metadata(tmp_path):
+    """
+    Test that config is properly stored in HDF5 files.
+    
+    Verifies that:
+    - File-level metadata includes creation_date, jts_version, and config
+    - Group-level metadata includes config as JSON
+    - Config can be parsed back from JSON
+    """
+    import json
+    import h5py
+    
+    # Create test data
+    N = 100
+    T_t = np.tile(np.eye(4), (N, 1, 1))
+    T_t[:, :3, 3] = np.random.randn(N, 3) * 10
+    
+    # Create test config
+    test_config = {
+        'analysis': {
+            'smoothing': {'window_length': 21, 'poly_order': 3},
+            'experiment': {'frame_interval': [0, 99]}
+        },
+        'output': {'unit': 'm', 'derivative_order': 2}
+    }
+    
+    test_file = tmp_path / 'test_config.h5'
+    hlp.store_transformations(
+        [T_t], [200.0], test_file,
+        metadata=['Test transformation'],
+        group_names=['test_group'],
+        derivative_order=2,
+        config=test_config
+    )
+    
+    # Verify file-level metadata using h5py
+    with h5py.File(test_file, 'r') as f:
+        assert 'creation_date' in f.attrs
+        assert 'jts_version' in f.attrs
+        assert 'config' in f.attrs
+        
+        # Parse and verify config
+        stored_config = json.loads(f.attrs['config'])  # type: ignore
+        assert stored_config == test_config
+        assert stored_config['analysis']['smoothing']['window_length'] == 21
+        
+        # Verify group-level metadata
+        assert 'test_group' in f
+        grp = f['test_group']
+        assert 'config' in grp.attrs
+        
+        # Parse and verify group config
+        group_config = json.loads(grp.attrs['config'])  # type: ignore
+        assert group_config == test_config
+
+
+def test_load_config_from_hdf5(tmp_path):
+    """
+    Test that config is properly loaded from HDF5 files.
+    
+    Verifies that load_hdf5_transformations() returns config in the
+    data dictionary for each group.
+    """
+    import json
+    
+    # Create test data
+    N = 100
+    T_t = np.tile(np.eye(4), (N, 1, 1))
+    T_t[:, :3, 3] = np.random.randn(N, 3) * 10
+    
+    # Create test config
+    test_config = {
+        'analysis': {
+            'smoothing': {'window_length': 21, 'poly_order': 3},
+            'experiment': {'name': 'test_experiment'}
+        },
+        'output': {'unit': 'm'}
+    }
+    
+    test_file = tmp_path / 'test_load_config.h5'
+    hlp.store_transformations(
+        [T_t], [200.0], test_file,
+        metadata=['Test transformation'],
+        group_names=['test_group'],
+        config=test_config
+    )
+    
+    # Load data and verify config is included
+    data = hlp.load_hdf5_transformations(test_file)
+    
+    assert 'test_group' in data
+    assert 'config' in data['test_group']
+    
+    loaded_config = data['test_group']['config']
+    assert loaded_config is not None
+    assert loaded_config == test_config
+    assert loaded_config['analysis']['experiment']['name'] == 'test_experiment'
+
+
+def test_split_hdf5_preserves_config(tmp_path):
+    """
+    Test that config is preserved when splitting HDF5 files.
+    
+    Verifies that:
+    - Split files contain the original config at file level
+    - Split files contain the config at group level
+    - Config is correctly parsed from split files
+    """
+    import json
+    import h5py
+    from typing import Dict, List
+    
+    # Create test data
+    N = 200
+    T_t = np.tile(np.eye(4), (N, 1, 1))
+    T_t[:, :3, 3] = np.random.randn(N, 3) * 10
+    
+    # Create test config
+    test_config = {
+        'analysis': {
+            'smoothing': {'window_length': 21, 'poly_order': 3},
+            'experiment': {
+                'name': 'split_test',
+                'frame_interval': [0, 199]
+            }
+        },
+        'output': {'unit': 'm', 'derivative_order': 2}
+    }
+    
+    test_file = tmp_path / 'test_split_config.h5'
+    hlp.store_transformations(
+        [T_t], [200.0], test_file,
+        metadata=['Test transformation'],
+        group_names=['test_group'],
+        derivative_order=2,
+        config=test_config
+    )
+    
+    # Define sub-experiments
+    sub_experiments: Dict[str, List[int]] = {
+        'first_half': [0, 99],
+        'second_half': [100, 199]
+    }
+    
+    # Split the file
+    output_files = hlp.split_hdf5_by_sub_experiments(
+        test_file,
+        sub_experiments=sub_experiments,  # type: ignore
+        output_dir=tmp_path / 'split'
+    )
+    
+    # Verify config is preserved in split files
+    for sub_name, split_file in output_files.items():
+        # Check file-level metadata
+        with h5py.File(split_file, 'r') as f:
+            assert 'config' in f.attrs, f"File-level config missing in {sub_name}"
+            file_config = json.loads(f.attrs['config'])  # type: ignore
+            assert file_config == test_config
+            
+            # Check group-level metadata
+            assert 'test_group' in f
+            grp = f['test_group']
+            assert 'config' in grp.attrs, f"Group-level config missing in {sub_name}"
+            group_config = json.loads(grp.attrs['config'])  # type: ignore
+            assert group_config == test_config
+        
+        # Also verify using load function
+        data = hlp.load_hdf5_transformations(split_file)
+        assert 'config' in data['test_group']
+        assert data['test_group']['config'] == test_config
+
