@@ -17,8 +17,9 @@ The models for the hardware components are provided as STL files and inside a Fr
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [Setup and Usage](#setup-and-usage)
-- [Examples](#examples)
 - [Extending the Framework](#extending-the-framework)
+- [Documentation](#documentation)
+- [Examples](#examples)
 - [Directory Structure](#directory-structure)
 - [Testing](#testing)
 - [License](#license)
@@ -27,16 +28,17 @@ The models for the hardware components are provided as STL files and inside a Fr
 ---
 
 ## Features
-- Customizable, 3D-printable hardware components
-- Offline or real-time jaw motion analysis (online processing in development)
-- Abstract base classes for motion capture data (supports Qualisys, extensible to others)
-- Calibration routines for anatomical landmark registration
-- Modular pipeline: calibration, relative motion, coordinate transformation, smoothing, visualization, export
-- Support for data export in HDF5 format
-- Easy configurable via JSON files
-- Visualization utilities for 2D/3D trajectories
-- Comprehensive logging and error handling
-- Test suite for core functionality
+- **Customizable Hardware**: 3D-printable, low-cost components for jaw tracking
+- **Flexible Analysis Pipeline**: Calibration, relative motion, coordinate transformation, smoothing, export
+- **Motion Capture Support**: Abstract base classes for Qualisys (extensible to other systems)
+- **Real-time & Offline**: Supports both offline analysis and real-time streaming (in development)
+- **HDF5 Analysis Tools**: 
+  - Split recordings by sub-experiments with automatic frame offset handling
+  - Plot derivatives (velocity, acceleration) alongside trajectories
+  - Compare raw vs smoothed data with comprehensive visualization
+- **Easy Configuration**: JSON-based configuration system
+- **Comprehensive Testing**: Test suite for core functionality (24 tests)
+- **Well Documented**: Complete API reference and examples
 
 ## Hardware
 The hardware components are designed to be low-cost and customizable. The models for the hardware components are 
@@ -132,85 +134,128 @@ results = analysis.run_analysis()
 - Implement new calibration or analysis routines by extending `JawMotionAnalysis`.
 - Add new visualization or export utilities in `helper.py`.
 
+## Documentation
+
+- **[HDF5 Analysis Guide](docs/HDF5_ANALYSIS.md)** - Complete API reference for HDF5 analysis functions
+- **[HDF5 Quick Start](docs/HDF5_QUICKSTART.md)** - Quick examples and common use cases  
+- **[Configuration Guide](config/README.md)** - JSON configuration file reference
+
+## Examples - Working With the Processed Data
+
+The `examples/` directory contains scripts demonstrating key features. For comprehensive documentation, 
+see **[HDF5 Analysis Guide](docs/HDF5_ANALYSIS.md)** and **[Quick Start](docs/HDF5_QUICKSTART.md)**.
+
+### 1. Analyze HDF5 Files
+
+Inspect, load, and visualize saved trajectory data:
+
+```bash
+python examples/hdf5_analysis_example.py output/jaw_motion.h5
+```
+
+### 2. Split by Sub-Experiments
+
+Extract specific motion types from recordings:
+
+```bash
+python examples/split_hdf5_example.py jaw_motion.h5 config/config.json
+```
+
+This automatically:
+- Detects frame offset from config (`frame_interval`)
+- Splits file into sub-experiments (e.g., chewing, opening/closing)
+- Recalculates derivatives for each segment
+
+### 3. Working with HDF5 Files Programmatically
+
+```python
+import jts.helper as hlp
+import matplotlib.pyplot as plt
+
+# Inspect file structure
+info = hlp.inspect_hdf5('jaw_motion.h5', verbose=True)
+
+# Load transformation data
+data = hlp.load_hdf5_transformations('jaw_motion.h5')
+transforms = data['T_model_origin_mand_landmark_t']['transformations']  # (N, 4, 4)
+derivatives = data['T_model_origin_mand_landmark_t']['derivatives']
+
+# Access derivatives with convenient aliases
+trans_vel = derivatives['translational_velocity']      # m/s
+ang_vel = derivatives['angular_velocity']              # rad/s
+
+# Visualize trajectory in 3D
+hlp.visualize_hdf5_trajectory('jaw_motion.h5', frame_step=50)
+
+# Compare trajectories (translations, rotations, derivatives)
+hlp.compare_hdf5_trajectories('jaw_motion.h5', component='translations')
+hlp.compare_hdf5_trajectories('jaw_motion.h5', component='translational_velocity')
+
+# Split by sub-experiments
+output_files = hlp.split_hdf5_by_sub_experiments(
+    'jaw_motion.h5',
+    config_file='config/config.json',  # Auto-detects frame_offset
+    output_dir='sub_experiments/'
+)
+
+plt.show()
+```
+
+### Available HDF5 Functions
+
+| Function | Description |
+|----------|-------------|
+| `inspect_hdf5()` | Inspect file structure and metadata |
+| `load_hdf5_transformations()` | Load trajectory data with derivatives |
+| `visualize_hdf5_trajectory()` | Create 3D trajectory visualizations |
+| `compare_hdf5_trajectories()` | Compare trajectories (translations, rotations, derivatives) |
+| `split_hdf5_by_sub_experiments()` | Split files by frame intervals with auto frame offset |
+
+**📖 For complete API reference and advanced usage, see [HDF5 Analysis Documentation](docs/HDF5_ANALYSIS.md)**
+
 ## Directory Structure
 
 ```
 jaw_tracking_system/
-├── jts/
+├── jts/                              # Core package
 │   ├── __init__.py
-│   ├── calibration_controllers.py
-│   ├── core.py
-│   ├── helper.py
-│   ├── plotly_visualization.py
-│   ├── precision_analysis.py
-│   ├── qualisys_streaming.py
-│   ├── qualisys.py
-│   ├── streaming.py
+│   ├── calibration_controllers.py   # Calibration point collection
+│   ├── core.py                      # Main analysis pipeline
+│   ├── helper.py                    # Utility functions and HDF5 tools
+│   ├── plotly_visualization.py      # Interactive 3D visualization
+│   ├── precision_analysis.py        # Precision and accuracy analysis
+│   ├── qualisys_streaming.py        # Real-time Qualisys streaming
+│   ├── qualisys.py                  # Qualisys data interface
+│   └── streaming.py                 # Abstract streaming base classes
 ├── config/
-│   ├── README.md
-│   └── config.json
-├── models/
-├── tests/
+│   ├── README.md                    # Configuration guide
+│   └── config.json                  # Configuration template
+├── docs/
+│   ├── HDF5_ANALYSIS.md            # Complete HDF5 API reference
+│   └── HDF5_QUICKSTART.md          # Quick start guide for HDF5 tools
+├── examples/
+│   ├── hdf5_analysis_example.py    # HDF5 inspection and visualization
+│   └── split_hdf5_example.py       # Split files by sub-experiments
+├── models/                          # 3D-printable hardware models
+│   ├── JTS_Calibration_Tool.stl    # Digitizing pointer
+│   ├── JTS_Head_Marker.stl         # Headpiece with markers
+│   ├── JTS_Models.FCStd            # FreeCAD project file
+│   ├── JTS_Mouth_Marker.stl        # Mouthpiece with markers
+│   └── JTS_Teeth_Attachment.stl    # Teeth attachment
+├── tests/                           # Test suite (24 tests)
 │   ├── __init__.py
 │   ├── test_core.py
 │   ├── test_helper.py
 │   ├── test_precision_analysis.py
 │   └── test_qualisys.py
 ├── CHANGELOG.md
+├── CITATION.cff
 ├── LICENSE
 ├── MANIFEST.in
 ├── README.md
 ├── requirements.txt
-├── setup.py
+└── setup.py
 ```
-
-## Examples
-
-The `examples/` directory contains example scripts demonstrating various features:
-
-### HDF5 Analysis Example
-
-Comprehensive example for working with saved HDF5 trajectory files:
-
-```bash
-python examples/hdf5_analysis_example.py output/jaw_motion.h5
-```
-
-This script demonstrates:
-- Inspecting HDF5 file structure and metadata
-- Loading transformation data programmatically
-- Creating 3D trajectory visualizations
-- Comparing raw vs smoothed trajectories
-
-For more details, see the [HDF5 Analysis Documentation](docs/HDF5_ANALYSIS.md) and [Quick Start Guide](docs/HDF5_QUICKSTART.md).
-
-### Working with HDF5 Files Programmatically
-
-```python
-import jts.helper as hlp
-import matplotlib.pyplot as plt
-
-# Inspect HDF5 file
-info = hlp.inspect_hdf5('jaw_motion.h5', verbose=True)
-
-# Load transformation data
-data = hlp.load_hdf5_transformations('jaw_motion.h5')
-transforms = data['T_model_origin_mand_landmark_t']['transformations']
-
-# Visualize trajectory in 3D
-hlp.visualize_hdf5_trajectory('jaw_motion.h5', frame_step=50)
-
-# Compare raw vs smoothed trajectories
-hlp.compare_hdf5_trajectories('jaw_motion.h5', component='translations')
-
-plt.show()
-```
-
-Available HDF5 functions:
-- `inspect_hdf5()` - Inspect file structure without loading all data
-- `load_hdf5_transformations()` - Load trajectory data into memory
-- `visualize_hdf5_trajectory()` - Create 3D visualizations
-- `compare_hdf5_trajectories()` - Compare multiple trajectories
 
 ## Testing
 
