@@ -5,6 +5,69 @@ All notable changes to the Jaw Tracking System will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+---
+
+## [1.1.1] - 2026-02-04
+
+### Added
+
+#### Development Tools
+- **Version bump script** (`scripts/bump_version.py`): CLI tool to update version, copyright year, and date across all project files
+  - Supports `--dry-run` for previewing changes
+  - Auto-detects current version with `--show-current`
+  - Updates 18 files: Python modules, setup.py, CITATION.cff
+- **Package-level version** in `jts/__init__.py`: Access version via `import jts; jts.__version__`
+
+#### Documentation
+- **Comprehensive Setup and Usage documentation** in README.md:
+  - Hardware assembly instructions with 3D printing recommendations (biocompatible materials)
+  - Experimental setup guide for motion capture configuration
+  - Calibration procedure with 6 anatomical landmark positions
+  - Step-by-step workflow from recording to analysis
+  - Hardware components table with STL file links and material specifications
+  - Digitizing pointer assembly details (2BA thread + dart point)
+
+#### HDF5 Analysis Enhancements
+- **`split_hdf5_by_sub_experiments()`** in `jts/helper.py`: Split HDF5 files by frame intervals
+  - Auto-detects frame_offset from config file's `frame_interval[0]`
+  - Handles renumbered HDF5 frames vs original frame numbers
+  - Supports single intervals and concatenated multiple intervals
+  - Recalculates derivatives for concatenated segments
+  - Config file and manual sub-experiment definition support
+- **Derivative plotting** in `compare_hdf5_trajectories()`:
+  - New components: `translational_velocity`, `translational_acceleration`
+  - New components: `angular_velocity`, `angular_acceleration`
+  - Proper unit handling (m/s, m/s², rad/s, rad/s²)
+  - Convenient aliases for easier access to derivative data
+- **HDF5 metadata improvements**:
+  - Separate `config` attribute at file and group level for better reproducibility
+  - File-level attributes: `creation_date`, `jts_version`, `config` (as JSON)
+  - Group-level attributes: `config` (per trajectory, as JSON)
+  - Easy programmatic config access: `json.loads(group.attrs['config'])`
+  - Config automatically preserved when splitting files
+  - Backward compatible (returns None if config missing)
+- **Enhanced example script** (`examples/split_hdf5_example.py`): Demonstrates file splitting functionality
+- **Updated documentation**:
+  - `docs/HDF5_ANALYSIS.md`: Detailed API reference for split functionality and derivatives
+  - `docs/HDF5_QUICKSTART.md`: Practical usage scenarios
+  - `examples/hdf5_analysis_example.py`: Improved output formatting and derivative plots
+
+### Changed
+- Updated copyright year to 2026 across all Python modules
+- Updated CITATION.cff with published IEEE Sensors 2025 DOI
+- Improved README.md Hardware section with comprehensive component specifications
+
+### Fixed
+- Frame offset handling in HDF5 file splitting for accurate sub-experiment extraction
+
+### Technical Details
+- Added 10 new comprehensive tests for splitting and config storage (37 total tests, all passing)
+- Enhanced HDF5 file structure with two-level metadata system
+
+---
+
 ## [1.1.0] - 2025-10-16
 
 ### Added
@@ -182,10 +245,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **Unreleased**: (empty)
+- **1.1.1** (2026-02-04): HDF5 splitting & derivatives, metadata improvements, version management tooling, comprehensive setup documentation
 - **1.1.0** (2025-10-16): New HDF5 analysis features, LaTeX rendering fixes, comprehensive testing
 - **1.0.4** (2025-10-16): Major code quality improvements, type safety enhancements, all type errors resolved
 - **1.0.3** (2025-06-03): Initial public release
 
+[Unreleased]: https://github.com/paulotto/jaw_tracking_system/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/paulotto/jaw_tracking_system/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/paulotto/jaw_tracking_system/compare/v1.0.4...v1.1.0
 [1.0.4]: https://github.com/paulotto/jaw_tracking_system/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/paulotto/jaw_tracking_system/releases/tag/v1.0.3
