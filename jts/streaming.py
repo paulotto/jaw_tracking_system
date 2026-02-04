@@ -32,13 +32,13 @@ Architecture Overview:
 """
 
 __author__ = "Paul-Otto Müller"
-__copyright__ = "Copyright 2025, Paul-Otto Müller"
+__copyright__ = "Copyright 2026, Paul-Otto Müller"
 __credits__ = ["Paul-Otto Müller"]
 __license__ = "CC BY-NC-SA 4.0"
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 __maintainer__ = "Paul-Otto Müller"
 __status__ = "Development"
-__date__ = '16.10.2025'
+__date__ = '04.02.2026'
 __url__ = "https://github.com/paulotto/jaw-tracking-system"
 
 import time
