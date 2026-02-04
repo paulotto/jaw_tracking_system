@@ -106,9 +106,107 @@ All analysis parameters are specified in a JSON config file. Key sections includ
 See [config.json](config/config.json) for a template.
 
 ## Setup and Usage
-TODO: Describe experimental setup, hardware assembly, and how to run the system.
 
-### As a Script
+This section describes the complete workflow from hardware assembly to running the analysis pipeline.
+
+### 1. Hardware Assembly
+
+#### 3D Printing the Components
+
+Print the following components from the STL files in the [models/](models) directory:
+
+| Component | STL File | Recommended Material | Notes |
+|-----------|----------|---------------------|-------|
+| Mouthpiece (MTA) | [JTS_Mouth_Marker.stl](models/JTS_Mouth_Marker.stl) | Standard PLA/PETG | Attaches to teeth, must be biocompatible |
+| Teeth Attachment | [JTS_Teeth_Attachment.stl](models/JTS_Teeth_Attachment.stl) | Biocompatible PETG, IBT Resin | Single-use adapter for dental glue |
+| Headpiece (CRA) | [JTS_Head_Marker.stl](models/JTS_Head_Marker.stl) | Biocompatible PETG, IBT Resin | Worn on forehead |
+| Digitizing Pointer (DP) | [JTS_Calibration_Tool.stl](models/JTS_Calibration_Tool.stl) | Standard PLA/PETG | Uses 2BA thread + dart point for sharp tip |
+
+Since 3D printing a sufficiently sharp point is difficult, the digitizing pointer uses a **dart point** screwed onto a **2BA thread** that attaches to the pointer tip. This provides the precision needed for anatomical landmark digitization.
+
+**Printing recommendations:**
+- Use standard print settings for most components, adjust as needed
+- For the teeth attachment and headpiece, use medical-grade biocompatible materials
+- The FreeCAD project file [JTS_Models.FCStd](models/JTS_Models.FCStd) allows customization
+
+#### Assembly
+
+1. **Digitizing Pointer (DP):** Screw the 2BA thread into the pointer tip, then attach the dart point for precise landmark digitization.
+2. **Mouthpiece (MTA):** Connect the teeth attachment to the mouthpiece. Apply reflective markers (fibers or tape) to the designated marker positions.
+3. **Headpiece (CRA):** Attach reflective markers to the headpiece. Prepare hook-and-loop tape strips for securing to the forehead.
+
+### 2. Experimental Setup
+
+#### Motion Capture System Configuration
+
+The system requires an optical motion capture (OMoCap) system. Our validation used:
+- **System:** Qualisys Oqus with 3 cameras
+- **Sampling rate:** 200 Hz
+- **Post-calibration accuracy:** ~0.6 mm average
+
+Configure your OMoCap system to track the following rigid bodies:
+- `MP` - Mouthpiece/Mandibular tracking array
+- `HP` - Headpiece/Cranial reference array  
+- `CT` - Calibration tool/Digitizing pointer
+
+#### Participant Preparation
+
+1. **Attach the MTA:** Apply temporary dental glue to the teeth attachment and press firmly onto the lower incisors. Ensure robust connection without movement.
+    >Advice: Dry the teeth surface with a clean cloth or air blower before applying glue for better adhesion.
+2. **Secure the CRA:** Position the headpiece on the forehead and fasten with hook-and-loop tape. It should remain stable during head movements.
+3. **Verify tracking:** Confirm all rigid bodies are visible and tracked by the OMoCap system.
+
+### 3. Calibration Procedure
+
+The system requires digitizing **six anatomical landmarks** on the teeth to define local coordinate systems:
+
+#### Landmark Positions
+
+| Landmark | Location | Purpose |
+|----------|----------|---------|
+| `mand_point_1` | Lower left canine/premolar | Define mandibular coordinate system |
+| `mand_point_2` | Lower right canine/premolar | Define mandibular coordinate system |
+| `mand_point_3` | Lower central incisor | Define mandibular coordinate system |
+| `max_point_1` | Upper left canine/premolar | Define maxillary coordinate system |
+| `max_point_2` | Upper right canine/premolar | Define maxillary coordinate system |
+| `max_point_3` | Upper central incisor | Define maxillary coordinate system |
+
+#### Digitization Process
+
+1. **Start recording** in your OMoCap software
+2. **For each landmark:**
+   - Place the DP tip precisely on the anatomical point
+   - Hold steady for ~2-5 seconds
+   - Note the frame interval for the configuration file (or record video for later review)
+3. **Record the frame intervals** for each landmark in your config file under `analysis.calibration.mandibular.points` and `analysis.calibration.maxillary.points`
+
+Example configuration (see [config/README.md](config/README.md) for details):
+```json
+"mandibular": {
+  "rigid_bodies": ["MP", "CT"],
+  "points": [
+    {"name": "mand_point_1", "frame_interval": [2100, 2600]},
+    {"name": "mand_point_2", "frame_interval": [5100, 5600]},
+    {"name": "mand_point_3", "frame_interval": [7500, 8000]}
+  ]
+}
+```
+
+### 4. Motion Recording
+
+After calibration, record the jaw movements of interest:
+
+1. **Define experiment interval** in the config file under `analysis.experiment.frame_interval`
+2. **Instruct participant** to perform desired movements:
+   - Opening and closing
+   - Protrusion and retrusion (forward/backward)
+   - Lateral movements (left/right)
+   - Cyclic/chewing motions
+3. **Stop recording** and export data (`.mat` format for Qualisys)
+
+### 5. Running the Analysis
+
+#### As a Script
 
 ```bash
 python -m jts.core path/to/config.json
@@ -118,7 +216,7 @@ Optional flags:
 - `--verbose` for detailed logging
 - `--plot` to show plots interactively
 
-### As a Library
+#### As a Library
 
 ```python
 from jts.core import JawMotionAnalysis, ConfigManager
@@ -127,6 +225,17 @@ config = ConfigManager.load_config('path/to/config.json')
 analysis = JawMotionAnalysis(config)
 results = analysis.run_analysis()
 ```
+
+#### Output
+
+The pipeline produces:
+- **HDF5 files** with transformation matrices and derivatives (velocity, acceleration)
+- **Visualizations** of 3D trajectories
+- **Filtered kinematic data** using bidirectional Savitzky-Golay filtering
+
+### Real-time Streaming (Experimental)
+
+The system supports real-time data streaming via the `streaming` configuration, but this mode has not been fully validated. For robust use, the offline workflow is recommended. See [config/README.md](config/README.md) for streaming configuration options.
 
 ## Extending the Framework
 
@@ -289,8 +398,7 @@ If you use this package in your research, please cite:
   booktitle = {2025 IEEE Sensors, Vancouver, Canada},
   year={2025},
   publisher = {IEEE},
-  doi={10.48550/arXiv.2510.01191},
-  note={Accepted}
+  doi={10.1109/SENSORS59705.2025.11330651}
 }
 ```
 
